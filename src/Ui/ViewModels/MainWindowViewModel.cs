@@ -56,6 +56,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly Core.Sessions.AgentLoop _loop;
     private readonly Core.Sessions.VoiceSession _session = new();
     private readonly List<Core.Sessions.ChatMessage> _history = [];
+    private readonly HashSet<string> _alwaysApproved = [];
+    private TaskCompletionSource<bool>? _approvalTcs;
 
     [ObservableProperty]
     private string _presence = StateText(Core.Sessions.VoiceSessionState.Idle);
@@ -78,16 +80,32 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasMessages;
 
+    [ObservableProperty]
+    private bool _drawerOpen;
+
+    [ObservableProperty]
+    private ApprovalCard? _pendingApproval;
+
     public ObservableCollection<TimelineItem> Timeline { get; } = [];
 
     public bool HasUserCaption => UserCaption.Length > 0;
 
+    public bool HasPendingApproval => PendingApproval is not null;
+
     public MainWindowViewModel()
-        : this(BuildDefaultLoop())
     {
+        var gate = new ForwardGate();
+        _loop = BuildDefaultLoop(gate);
+        gate.Bind(this);
+        _session.Changed += () =>
+        {
+            SessionState = _session.State;
+            MicOn = _session.MicOn;
+            Presence = StateText(_session.State);
+        };
     }
 
-    public MainWindowViewModel(Core.Sessions.AgentLoop loop)
+    internal MainWindowViewModel(Core.Sessions.AgentLoop loop)
     {
         _loop = loop;
         _session.Changed += () =>
@@ -106,7 +124,7 @@ public partial class MainWindowViewModel : ObservableObject
         _ => "Ready",
     };
 
-    private static Core.Sessions.AgentLoop BuildDefaultLoop()
+    private static Core.Sessions.AgentLoop BuildDefaultLoop(ForwardGate gate)
     {
         var registry = new Core.Tools.ToolRegistry();
         var root = Path.Combine(
@@ -116,7 +134,7 @@ public partial class MainWindowViewModel : ObservableObject
         return new Core.Sessions.AgentLoop(
             new Core.Sessions.EchoModelProvider(),
             new Core.Tools.ToolBroker(
-                registry, new Core.Policy.PolicyEngine(), new UserApprovalGate(), new Core.Undo.UndoLedger()));
+                registry, new Core.Policy.PolicyEngine(), gate, new Core.Undo.UndoLedger()));
     }
 
     /// <summary>Hotkey and orb tap both land here; Core guards mid-turn calls.</summary>
@@ -129,6 +147,55 @@ public partial class MainWindowViewModel : ObservableObject
         Timeline.Add(new SystemItem(text));
         AssistantCaption = text;
     }
+
+    /// <summary>Broker asks the human: show the card, wait for the answer.</summary>
+    public Task<bool> RequestApprovalAsync(Core.Tools.ApprovalRequest request, CancellationToken ct = default)
+    {
+        if (_alwaysApproved.Contains(request.ToolName))
+            return Task.FromResult(true);
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _approvalTcs = tcs;
+        PendingApproval = new ApprovalCard(
+            request.ToolName,
+            $"Allow {request.ToolName}?",
+            Describe(request));
+        OnPropertyChanged(nameof(HasPendingApproval));
+        return tcs.Task;
+    }
+
+    private static string Describe(Core.Tools.ApprovalRequest request)
+    {
+        var args = string.Join("  ·  ",
+            request.Args.Select(kv => $"{kv.Key} = {kv.Value}"));
+        var suffix = args.Length > 0 ? $"\n{args}" : "";
+        return request.Definition.Description + suffix;
+    }
+
+    private void ResolveApproval(bool allow, bool remember)
+    {
+        if (_approvalTcs is null)
+            return;
+        if (remember && PendingApproval is not null)
+            _alwaysApproved.Add(PendingApproval.ToolName);
+        var tcs = _approvalTcs;
+        _approvalTcs = null;
+        PendingApproval = null;
+        OnPropertyChanged(nameof(HasPendingApproval));
+        tcs.TrySetResult(allow);
+    }
+
+    [RelayCommand]
+    public void ApproveOnce() => ResolveApproval(true, remember: false);
+
+    [RelayCommand]
+    public void ApproveAlways() => ResolveApproval(true, remember: true);
+
+    [RelayCommand]
+    public void DenyApproval() => ResolveApproval(false, remember: false);
+
+    [RelayCommand]
+    public void ToggleDrawer() => DrawerOpen = !DrawerOpen;
 
     [RelayCommand]
     private async Task SendAsync(CancellationToken ct)
@@ -181,9 +248,19 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnUserCaptionChanged(string value) => OnPropertyChanged(nameof(HasUserCaption));
 }
 
-/// <summary>Placeholder gate: refuse until the real preview dialog exists.</summary>
-public sealed class UserApprovalGate : Core.Tools.IApprovalGate
+/// <summary>Content shown on the approval card above the input.</summary>
+public sealed record ApprovalCard(string ToolName, string Title, string Detail);
+
+/// <summary>
+/// Broker gate seam: forwards approval asks into the VM's pending card;
+/// denies until bound and remembers "always allow" per tool for the session.
+/// </summary>
+public sealed class ForwardGate : Core.Tools.IApprovalGate
 {
+    private MainWindowViewModel? _vm;
+
+    public void Bind(MainWindowViewModel vm) => _vm = vm;
+
     public Task<bool> RequestAsync(Core.Tools.ApprovalRequest request, CancellationToken ct = default)
-        => Task.FromResult(false);
+        => _vm?.RequestApprovalAsync(request, ct) ?? Task.FromResult(false);
 }

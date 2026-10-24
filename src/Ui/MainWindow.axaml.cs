@@ -19,6 +19,8 @@ public partial class MainWindow : Window
         DataContext = _vm;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        _vm.Timeline.CollectionChanged += (_, _) =>
+            Dispatcher.UIThread.Post(() => DrawerScroll.ScrollToEnd(), DispatcherPriority.Background);
     }
 
     /// <summary>Register Ctrl+Alt+Space OS-wide; degrade gracefully if in use.</summary>

@@ -60,12 +60,12 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto">
+    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
 
         <!-- ── Header: mic mirror, never color alone ───────────────── -->
         <Border Grid.Row="0" BorderBrush="#E5E5EA" BorderThickness="0,0,0,1"
                 Background="Transparent" Padding="20,14">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="#34C759"
                              IsVisible="{Binding MicOn}" />
@@ -76,6 +76,11 @@
                 </StackPanel>
                 <TextBlock Grid.Column="2" Text="{Binding Presence}" FontSize="12"
                            Foreground="#86868B" VerticalAlignment="Center" />
+                <Button Grid.Column="3" Content="Conversation" Command="{Binding ToggleDrawerCommand}"
+                        FontSize="12" Foreground="#0071E3" Background="Transparent"
+                        Padding="8,2" CornerRadius="8" Margin="12,0,0,0"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding HasMessages}" />
             </Grid>
         </Border>
 
@@ -101,10 +106,37 @@
                        Margin="0,6,0,0" />
         </StackPanel>
 
+        <!-- ── Approval card: the human in the loop ────────────────── -->
+        <Border Grid.Row="2" IsVisible="{Binding HasPendingApproval}"
+                Background="#FFFFFF" BorderBrush="#E5E5EA" BorderThickness="1"
+                CornerRadius="14" Padding="14,10" Margin="20,4,20,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PendingApproval.Title}"
+                               FontSize="13" FontWeight="SemiBold" Foreground="#1D1D1F" />
+                    <TextBlock Text="{Binding PendingApproval.Detail}"
+                               FontSize="11" Foreground="#86868B" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Content="Always" Command="{Binding ApproveAlwaysCommand}"
+                            FontSize="12" Background="#F5F5F7" Foreground="#1D1D1F"
+                            CornerRadius="10" Padding="12,6" />
+                    <Button Content="Allow" Command="{Binding ApproveOnceCommand}"
+                            FontSize="12" FontWeight="SemiBold" Background="#0071E3"
+                            Foreground="White" CornerRadius="10" Padding="12,6" />
+                    <Button Content="Deny" Command="{Binding DenyApprovalCommand}"
+                            FontSize="12" FontWeight="SemiBold" Background="#FF3B30"
+                            Foreground="White" CornerRadius="10" Padding="12,6" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- ── Input row ───────────────────────────────────────────── -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="20,8,20,0">
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="20,8,20,0">
             <Border Background="#FFFFFF" CornerRadius="12" BorderBrush="#E0E0E3"
-                    BorderThickness="1" Margin="0,0,10,0">
+                    BorderThickness="1" Margin="0,0,10,0"
+                    IsVisible="{Binding !HasPendingApproval}">
                 <TextBox Text="{Binding Input, Mode=TwoWay}"
                          PlaceholderText="Message"
                          Background="Transparent" BorderThickness="0"
@@ -114,12 +146,36 @@
             <Button Grid.Column="1" Content="Send" Command="{Binding SendCommand}"
                     FontSize="13" FontWeight="SemiBold" Foreground="White"
                     Background="#0071E3" CornerRadius="18" Padding="20,9"
-                    VerticalAlignment="Stretch" MinHeight="38" />
+                    VerticalAlignment="Stretch" MinHeight="38"
+                    IsVisible="{Binding !HasPendingApproval}" />
+            <TextBlock Grid.ColumnSpan="2" Text="Answer above to continue."
+                       FontSize="12" Foreground="#86868B"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding HasPendingApproval}" />
         </Grid>
 
         <!-- ── Footer ──────────────────────────────────────────────── -->
-        <TextBlock Grid.Row="3" Text="Sandboxed · Policy-gated · Undoable"
+        <TextBlock Grid.Row="4" Text="Sandboxed · Policy-gated · Undoable"
                    FontSize="10" Foreground="#A1A1A8"
                    HorizontalAlignment="Center" Margin="0,8,0,12" />
+
+        <!-- ── Conversation drawer: history is a surface away ──────── -->
+        <Border Grid.Row="1" Grid.RowSpan="4" IsVisible="{Binding DrawerOpen}"
+                Background="#FAFFFFFF" BorderBrush="#E0E0E3" BorderThickness="1,0,0,0"
+                Width="380" HorizontalAlignment="Right" VerticalAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="16,12,16,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Conversation" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1D1D1F" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Close" Command="{Binding ToggleDrawerCommand}"
+                            FontSize="12" Foreground="#0071E3" Background="Transparent"
+                            Padding="6,2" CornerRadius="8" />
+                </Grid>
+                <ScrollViewer Grid.Row="1" x:Name="DrawerScroll" Margin="0,10,0,0"
+                              HorizontalScrollBarVisibility="Disabled" >
+                    <ItemsControl ItemsSource="{Binding Timeline}" Margin="0,0,0,12" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
