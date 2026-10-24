@@ -3,49 +3,115 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Cothon.Ui.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="480"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="560"
         x:Class="Cothon.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Cothon" Width="640" Height="480"
-        Background="#101318">
+        Title="Cothon" Width="720" Height="560" MinWidth="480" MinHeight="400"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        Background="#F5F5F7"
+        Foreground="#1D1D1F">
 
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto">
-        <!-- Presence: one honest status line, never colour alone -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="12,12,12,6">
-            <Ellipse Width="10" Height="10" Fill="#38D77E" />
-            <TextBlock Text="{Binding Presence}" FontSize="13" Foreground="#C9CED6" />
-        </StackPanel>
+    <Window.DataTemplates>
+        <!-- You: right, blue bubble -->
+        <DataTemplate DataType="{x:Type vm:UserItem}">
+            <Border HorizontalAlignment="Right" MaxWidth="440"
+                    CornerRadius="18" Padding="12,8"
+                    Background="#007AFF" Margin="0,2">
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                           FontSize="13" Foreground="White" />
+            </Border>
+        </DataTemplate>
 
-        <!-- Timeline: user/assistant/tool turns in order -->
-        <ScrollViewer Grid.Row="1" Margin="12,6" Padding="4">
-            <ItemsControl ItemsSource="{Binding Timeline}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Margin="0,3" Padding="10,7" CornerRadius="6"
-                                Background="#171B22">
-                            <StackPanel Orientation="Vertical" Spacing="2">
-                                <TextBlock Text="{Binding Label}" FontSize="10"
-                                           Foreground="#6F7987" />
-                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
-                                           FontSize="13" Foreground="#E7EAF0" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <!-- Cothon: left, gray bubble -->
+        <DataTemplate DataType="{x:Type vm:AssistantItem}">
+            <Border HorizontalAlignment="Left" MaxWidth="480"
+                    CornerRadius="18" Padding="12,8"
+                    Background="#E9E9EB" Margin="0,2">
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                           FontSize="13" Foreground="#1D1D1F" />
+            </Border>
+        </DataTemplate>
+
+        <!-- Tool: compact left card with status label -->
+        <DataTemplate DataType="{x:Type vm:ToolItem}">
+            <Border HorizontalAlignment="Left" MaxWidth="480"
+                    CornerRadius="10" Padding="10,7"
+                    Background="#FFFFFF" BorderBrush="#E5E5EA"
+                    BorderThickness="1" Margin="0,3">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Label}" FontSize="11"
+                               Foreground="#86868B" />
+                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                               FontSize="12" Foreground="#1D1D1F" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- System: centered whisper -->
+        <DataTemplate DataType="{x:Type vm:SystemItem}">
+            <TextBlock Text="{Binding Text}" FontSize="11"
+                       Foreground="#86868B" HorizontalAlignment="Center"
+                       Margin="0,2" />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+
+        <!-- ── Header: status only, Apple-calm ─────────────────────── -->
+        <Border Grid.Row="0" BorderBrush="#E5E5EA" BorderThickness="0,0,0,1"
+                Background="Transparent" Padding="20,14">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="#34C759" />
+                    <TextBlock Text="Cothon" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1D1D1F" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding Presence}" FontSize="12"
+                           Foreground="#86868B" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- ── Conversation ────────────────────────────────────────── -->
+        <ScrollViewer Grid.Row="1" Padding="20,16" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="10">
+                <!-- Apple-style empty state: one question, centered -->
+                <StackPanel IsVisible="{Binding !HasMessages}" VerticalAlignment="Center"
+                            HorizontalAlignment="Center" Margin="0,140,0,0" Spacing="6">
+                    <TextBlock Text="How can I help?"
+                               FontSize="26" FontWeight="SemiBold" Foreground="#1D1D1F"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="Type below. Every action is checked and reversible."
+                               FontSize="13" Foreground="#86868B"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding Timeline}" />
+            </StackPanel>
         </ScrollViewer>
 
-        <!-- One input: typing hits the same intent pipeline as voice will -->
-        <DockPanel Grid.Row="2" Margin="12,6,12,12">
-            <Button DockPanel.Dock="Right" Content="Send"
-                    Command="{Binding SendCommand}"
-                    Padding="16,6" Margin="8,0,0,0" />
-            <TextBox Text="{Binding Input, Mode=TwoWay}" PlaceholderText="Type, or just speak (later)…"
-                     FontSize="13" KeyDown="OnInputKeyDown" />
-        </DockPanel>
+        <!-- ── Input row ───────────────────────────────────────────── -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="20,8,20,0">
+            <Border Background="#FFFFFF" CornerRadius="12" BorderBrush="#E0E0E3"
+                    BorderThickness="1" Margin="0,0,10,0">
+                <TextBox Text="{Binding Input, Mode=TwoWay}"
+                         PlaceholderText="Message"
+                         Background="Transparent" BorderThickness="0"
+                         Padding="14,9" FontSize="13" MinHeight="38"
+                         KeyDown="OnInputKeyDown" />
+            </Border>
+            <Button Grid.Column="1" Content="Send" Command="{Binding SendCommand}"
+                    FontSize="13" FontWeight="SemiBold" Foreground="White"
+                    Background="#0071E3" CornerRadius="18" Padding="20,9"
+                    VerticalAlignment="Stretch" MinHeight="38" />
+        </Grid>
+
+        <!-- ── Footer ──────────────────────────────────────────────── -->
+        <TextBlock Grid.Row="3" Text="Sandboxed · Policy-gated · Undoable"
+                   FontSize="10" Foreground="#A1A1A8"
+                   HorizontalAlignment="Center" Margin="0,8,0,12" />
     </Grid>
 </Window>
