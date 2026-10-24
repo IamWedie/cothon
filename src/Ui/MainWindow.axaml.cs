@@ -23,4 +23,8 @@ public partial class MainWindow : Window
             _vm.SendCommand.Execute(null);
         }
     }
+
+    /// <summary>Orb tap mirrors the hotkey: one mic switch, every surface agrees.</summary>
+    private void OnOrbTapped(object? sender, TappedEventArgs e)
+        => _vm.ToggleMic();
 }

@@ -54,13 +54,23 @@ public sealed record SystemItem : TimelineItem
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly Core.Sessions.AgentLoop _loop;
+    private readonly Core.Sessions.VoiceSession _session = new();
     private readonly List<Core.Sessions.ChatMessage> _history = [];
 
     [ObservableProperty]
-    private string _presence = "Ready";
+    private string _presence = StateText(Core.Sessions.VoiceSessionState.Idle);
 
     [ObservableProperty]
-    private bool _isThinking;
+    private Core.Sessions.VoiceSessionState _sessionState = Core.Sessions.VoiceSessionState.Idle;
+
+    [ObservableProperty]
+    private bool _micOn;
+
+    [ObservableProperty]
+    private string _userCaption = "";
+
+    [ObservableProperty]
+    private string _assistantCaption = "How can I help?";
 
     [ObservableProperty]
     private string _input = "";
@@ -70,6 +80,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<TimelineItem> Timeline { get; } = [];
 
+    public bool HasUserCaption => UserCaption.Length > 0;
+
     public MainWindowViewModel()
         : this(BuildDefaultLoop())
     {
@@ -78,7 +90,21 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(Core.Sessions.AgentLoop loop)
     {
         _loop = loop;
+        _session.Changed += () =>
+        {
+            SessionState = _session.State;
+            MicOn = _session.MicOn;
+            Presence = StateText(_session.State);
+        };
     }
+
+    private static string StateText(Core.Sessions.VoiceSessionState state) => state switch
+    {
+        Core.Sessions.VoiceSessionState.Listening => "Mic armed",
+        Core.Sessions.VoiceSessionState.Thinking => "Thinking…",
+        Core.Sessions.VoiceSessionState.Speaking => "Speaking",
+        _ => "Ready",
+    };
 
     private static Core.Sessions.AgentLoop BuildDefaultLoop()
     {
@@ -93,15 +119,22 @@ public partial class MainWindowViewModel : ObservableObject
                 registry, new Core.Policy.PolicyEngine(), new UserApprovalGate(), new Core.Undo.UndoLedger()));
     }
 
+    /// <summary>Hotkey and orb tap both land here; Core guards mid-turn calls.</summary>
+    [RelayCommand]
+    public void ToggleMic() => _session.ToggleMic();
+
     [RelayCommand]
     private async Task SendAsync(CancellationToken ct)
     {
         var text = Input.Trim();
-        if (text.Length == 0 || IsThinking) return;
+        if (text.Length == 0 || _session.State is Core.Sessions.VoiceSessionState.Thinking
+            or Core.Sessions.VoiceSessionState.Speaking)
+            return;
         Input = "";
         HasMessages = true;
-        IsThinking = true;
-        Presence = "Thinking…";
+        UserCaption = text;
+        AssistantCaption = "";
+        _session.StartThinking();
         try
         {
             var messages = await _loop.RunAsync(_history, text, ct);
@@ -124,17 +157,21 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
             _history.AddRange(messages);
+
+            var said = messages.LastOrDefault(m => m.Author == Core.Sessions.Author.Assistant);
+            AssistantCaption = said is { Text.Length: > 0 } ? said.Text : "Done.";
+            _session.StartSpeaking();
+            await Task.Delay(700, ct);
+            _session.EndTurn();
         }
         catch (OperationCanceledException)
         {
-            Timeline.Add(new SystemItem("Cancelled."));
-        }
-        finally
-        {
-            IsThinking = false;
-            Presence = "Ready";
+            AssistantCaption = "Cancelled.";
+            _session.EndTurn();
         }
     }
+
+    partial void OnUserCaptionChanged(string value) => OnPropertyChanged(nameof(HasUserCaption));
 }
 
 /// <summary>Placeholder gate: refuse until the real preview dialog exists.</summary>
