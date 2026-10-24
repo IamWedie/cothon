@@ -123,6 +123,13 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void ToggleMic() => _session.ToggleMic();
 
+    /// <summary>Visible system notes (hotkey failures etc.) land in captions + timeline.</summary>
+    public void NoteSystem(string text)
+    {
+        Timeline.Add(new SystemItem(text));
+        AssistantCaption = text;
+    }
+
     [RelayCommand]
     private async Task SendAsync(CancellationToken ct)
     {
