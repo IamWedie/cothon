@@ -2,8 +2,50 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:vm="clr-namespace:Cothon.Ui.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="480"
         x:Class="Cothon.MainWindow"
-        Title="Cothon">
-    Welcome to Avalonia!
+        x:DataType="vm:MainWindowViewModel"
+        Title="Cothon" Width="640" Height="480"
+        Background="#101318">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Presence: one honest status line, never colour alone -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="12,12,12,6">
+            <Ellipse Width="10" Height="10" Fill="#38D77E" />
+            <TextBlock Text="{Binding Presence}" FontSize="13" Foreground="#C9CED6" />
+        </StackPanel>
+
+        <!-- Timeline: user/assistant/tool turns in order -->
+        <ScrollViewer Grid.Row="1" Margin="12,6" Padding="4">
+            <ItemsControl ItemsSource="{Binding Timeline}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,3" Padding="10,7" CornerRadius="6"
+                                Background="#171B22">
+                            <StackPanel Orientation="Vertical" Spacing="2">
+                                <TextBlock Text="{Binding Label}" FontSize="10"
+                                           Foreground="#6F7987" />
+                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                           FontSize="13" Foreground="#E7EAF0" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- One input: typing hits the same intent pipeline as voice will -->
+        <DockPanel Grid.Row="2" Margin="12,6,12,12">
+            <Button DockPanel.Dock="Right" Content="Send"
+                    Command="{Binding SendCommand}"
+                    Padding="16,6" Margin="8,0,0,0" />
+            <TextBox Text="{Binding Input, Mode=TwoWay}" PlaceholderText="Type, or just speak (later)…"
+                     FontSize="13" KeyDown="OnInputKeyDown" />
+        </DockPanel>
+    </Grid>
 </Window>
