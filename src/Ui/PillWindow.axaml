@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Cothon.Ui.ViewModels"
+        xmlns:controls="clr-namespace:Cothon.Ui.Controls"
+        mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="140"
+        x:Class="Cothon.PillWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Cothon mic" Width="128" Height="150"
+        Topmost="True" ShowInTaskbar="False" WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        Background="Transparent">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Panel Background="Transparent">
+        <Border Width="106" Height="128" CornerRadius="24"
+                Background="#FCF5F5F7" BorderBrush="#D8D8DC" BorderThickness="1"
+                BoxShadow="0 6 18 #2E000000"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Panel PointerPressed="OnDragGripPressed" Cursor="SizeAll">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                    <Border Tapped="OnPillTapped" Cursor="Hand" Background="Transparent"
+                            Width="70" Height="70">
+                        <controls:SiriOrb State="{Binding SessionState}" />
+                    </Border>
+                    <TextBlock Text="{Binding Presence}" FontSize="9"
+                               Foreground="#86868B" HorizontalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" Margin="4,0" />
+                </StackPanel>
+            </Panel>
+        </Border>
+    </Panel>
+</Window>

@@ -11,6 +11,7 @@ public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _vm;
     private Win32HotkeyHost? _hotkeyHost;
+    private PillWindow? _pill;
 
     public MainWindow()
     {
@@ -46,12 +47,20 @@ public partial class MainWindow : Window
 
         if (host.Error.Length > 0)
             _vm.NoteSystem(host.Error);
+        // Always-on-top pill shares the same VM; both surfaces never disagree.
+        if (_pill is null)
+        {
+            _pill = new PillWindow(this, _vm);
+            _pill.Show();
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         _hotkeyHost?.Dispose();
         _hotkeyHost = null;
+        _pill?.Close();
+        _pill = null;
     }
 
     private sealed class AvaloniaDispatcherBridge : DispatcherLike
