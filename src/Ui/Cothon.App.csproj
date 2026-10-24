@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -20,9 +20,6 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <AvaloniaResource Include="**\*.axaml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\Cothon.Core.csproj" />
