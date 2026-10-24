@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/Cothon.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/Ui/">
+    <Project Path="src/Ui/Cothon.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cothon.Tests/Cothon.Tests.csproj" />
+  </Folder>
+</Solution>

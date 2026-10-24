@@ -1,10 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationManifest>src/Ui/app.manifest</ApplicationManifest>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>Cothon</RootNamespace>
     <AssemblyName>Cothon</AssemblyName>
   </PropertyGroup>
@@ -22,6 +22,9 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <AvaloniaResource Include="src\Ui\**\*.axaml" />
+    <AvaloniaResource Include="**\*.axaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Cothon.Core.csproj" />
   </ItemGroup>
 </Project>
