@@ -1,0 +1,16 @@
+﻿# Build artifacts
+bin/
+obj/
+*.user
+.vs/
+AppPackages/
+BundleArtifacts/
+Generated Files/
+*.appx
+*.msix
+*.msixbundle
+Diagnostics/
+__pycache__/
+*.pyc
+.pytest_cache/
+test-results/
