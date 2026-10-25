@@ -1,3 +1,4 @@
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Cothon.Core.Phone;
@@ -80,6 +81,13 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnProviderChanged(string value) => ProviderCaption = Caption();
 
+    /// <summary>Theme is the one preference that never waits for launch.</summary>
+    partial void OnAppearanceChanged(string value)
+    {
+        if (Application.Current is { } app)
+            app.RequestedThemeVariant = UiAppearance.Resolve(value);
+    }
+
     private string Caption() => Provider switch
     {
         "gemini" => "Google Gemini — text and realtime voice (Gemini Live); screen reading included.",
@@ -141,7 +149,7 @@ public partial class SettingsViewModel : ObservableObject
             _stored.PhonePort = port;
 
         _stored.Save();
-        Status = "Saved. Changes apply on next launch.";
+        Status = "Saved — theme is already applied, the rest applies on next launch.";
     }
 
     [RelayCommand]

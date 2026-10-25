@@ -20,7 +20,7 @@
         <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,18">
             <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold"
                        Foreground="{DynamicResource C.Title}" />
-            <TextBlock Text="Saved preferences apply on next launch."
+            <TextBlock Text="Theme applies instantly; the rest is saved for next launch."
                        FontSize="12" Foreground="{DynamicResource C.TextDim}" />
         </StackPanel>
 
