@@ -10,7 +10,9 @@ namespace Cothon.Core.Sessions;
 /// model answers in text (or the round cap forces a text-only reply).
 /// Tool failures become Tool messages with Ok=false — never a fake "done".
 /// </summary>
-public sealed class AgentLoop(IModelProvider provider, ToolBroker broker, MemoryStore? memory = null)
+public sealed class AgentLoop(
+    IModelProvider provider, ToolBroker broker,
+    MemoryStore? memory = null, HistoryPolicy? historyPolicy = null)
 {
     /// <summary>Tool rounds per turn before a text-only final answer is forced.</summary>
     public const int MaxToolRounds = 4;
@@ -33,8 +35,9 @@ public sealed class AgentLoop(IModelProvider provider, ToolBroker broker, Memory
         for (var round = 0; round <= MaxToolRounds; round++)
         {
             var restrictTools = round == MaxToolRounds;
+            var sendable = historyPolicy?.Trim(history) ?? history;
             var reply = await provider.CompleteAsync(
-                new ModelRequest(MemoryPrompt(), history, userText)
+                new ModelRequest(MemoryPrompt(), sendable, userText)
                 {
                     Screens = screens,
                     Tools = restrictTools ? [] : broker.Specs,
