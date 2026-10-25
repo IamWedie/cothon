@@ -72,6 +72,50 @@ public class GeminiTextProviderTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => provider.CompleteAsync(Request()));
     }
 
+    [Fact]
+    public async Task Tools_are_declared_as_functions_in_the_payload()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHandler(req => { captured = req; return OkGemini("ok"); });
+        var provider = new GeminiTextProvider("k", transport: handler);
+        var request = Request() with
+        {
+            Tools = [new ToolSpec("memory_save", "Store a durable fact.")],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await new StreamReader(captured!.Content!.ReadAsStream()).ReadToEndAsync();
+        Assert.Contains("functionDeclarations", body);
+        Assert.Contains("memory_save", body);
+        Assert.Contains("Store a durable fact.", body);
+    }
+
+    [Fact]
+    public async Task Function_call_reply_is_parsed_into_a_tool_call()
+    {
+        var json = $$"""
+{
+  "candidates": [ { "content": { "parts": [
+    { "functionCall": { "name": "memory_save", "args": { "key": "coffee", "value": "oat", "category": "personal" } } }
+  ] } } ]
+}
+""";
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        var provider = new GeminiTextProvider("k", transport: handler);
+
+        var reply = await provider.CompleteAsync(Request());
+
+        var call = Assert.Single(reply.ToolCalls);
+        Assert.Equal("memory_save", call.Name);
+        Assert.Equal("coffee", call.Args["key"]);
+        Assert.Equal("oat", call.Args["value"]);
+        Assert.Equal("personal", call.Args["category"]);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> reply) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)

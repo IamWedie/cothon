@@ -170,11 +170,18 @@ public partial class MainWindowViewModel : ObservableObject
 
         var stored = Core.Settings.AppSettings.Load();
         ScreenCaptureEnabled = stored.ScreenCapture;
+        Core.Memory.MemoryStore? memory = null;
+        if (stored.MemoryLogging)
+        {
+            memory = new Core.Memory.MemoryStore(stored.MemoryLogging);
+            registry.Register(new Core.Memory.MemoryTool(memory));
+        }
         var provider = ChooseProvider(stored);
         return new Core.Sessions.AgentLoop(
             provider,
             new Core.Tools.ToolBroker(
-                registry, new Core.Policy.PolicyEngine(), gate, new Core.Undo.UndoLedger()));
+                registry, new Core.Policy.PolicyEngine(), gate, new Core.Undo.UndoLedger()),
+            memory);
     }
 
     /// <summary>Gemini only with a key present; echo stays the quiet fallback.</summary>

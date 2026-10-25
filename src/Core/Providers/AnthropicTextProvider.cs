@@ -26,23 +26,28 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Anthropic API key is not configured.");
 
-        var body = new
-        {
-            model,
-            max_tokens = 2048,
-            system = request.SystemPrompt,
-            messages = request.History
-                .Select(m => new
-                {
-                    role = m.Author == Author.Assistant ? "assistant" : "user",
-                    content = TextNote(m),
-                })
-                .Concat([new
-                {
-                    role = "user",
-                    content = CurrentContent(request.UserText, request.Screens),
-                }]),
-        };
+        var messages = request.History
+            .Select(m => new
+            {
+                role = m.Author == Author.Assistant ? "assistant" : "user",
+                content = TextNote(m),
+            })
+            .Concat([new
+            {
+                role = "user",
+                content = CurrentContent(request.UserText, request.Screens),
+            }]);
+
+        object body = request.Tools is { Count: > 0 }
+            ? new
+            {
+                model,
+                max_tokens = 2048,
+                system = request.SystemPrompt,
+                messages,
+                tools = request.Tools.Select(t => new { name = t.Name, description = t.Description }),
+            }
+            : new { model, max_tokens = 2048, system = request.SystemPrompt, messages };
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, Endpoint);
         requestMessage.Headers.TryAddWithoutValidation("x-api-key", apiKey);
@@ -58,7 +63,7 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct).ConfigureAwait(false);
-        return new ModelReply(Normalise(payload), []);
+        return new ModelReply(Normalise(payload), ToolCalls(payload));
     }
 
     public static string Endpoint => "https://api.anthropic.com/v1/messages";
@@ -82,6 +87,25 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
 
     /// <summary>History turns speak text; tool/system lines ride as user notes.</summary>
     private static object[] TextNote(ChatMessage m) => [new { type = "text", text = m.Text }];
+
+    /// <summary>tool_use blocks carry input args as a plain object.</summary>
+    internal static IReadOnlyList<ModelToolCall> ToolCalls(JsonElement payload)
+    {
+        try
+        {
+            return payload.GetProperty("content")
+                .EnumerateArray()
+                .Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "tool_use")
+                .Select(block => new ModelToolCall(
+                    block.GetProperty("name").GetString() ?? "",
+                    ToolArgs.From(block.GetProperty("input"))))
+                .ToList();
+        }
+        catch (KeyNotFoundException)
+        {
+            return [];
+        }
+    }
 
     private static object[] CurrentContent(string userText, IReadOnlyList<ScreenFrame>? screens)
     {

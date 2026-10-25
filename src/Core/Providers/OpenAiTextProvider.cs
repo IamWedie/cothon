@@ -27,14 +27,23 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("OpenAI API key is not configured.");
 
-        var body = new
-        {
-            model,
-            messages = request.History
-                .Select(m => TextMessage(m.Author == Author.Assistant ? "assistant" : "user", [TextPart(m.Text)]))
-                .Concat([TextMessage("user", CurrentParts(request.UserText, request.Screens))])
-                .Prepend(TextMessage("system", [TextPart(request.SystemPrompt)])),
-        };
+        var messages = request.History
+            .Select(m => TextMessage(m.Author == Author.Assistant ? "assistant" : "user", [TextPart(m.Text)]))
+            .Concat([TextMessage("user", CurrentParts(request.UserText, request.Screens))])
+            .Prepend(TextMessage("system", [TextPart(request.SystemPrompt)]));
+
+        object body = request.Tools is { Count: > 0 }
+            ? new
+            {
+                model,
+                messages,
+                tools = request.Tools.Select(t => new
+                {
+                    type = "function",
+                    function = new { name = t.Name, description = t.Description },
+                }),
+            }
+            : new { model, messages };
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, Endpoint(model));
         requestMessage.Headers.Authorization = new("Bearer", apiKey);
@@ -49,7 +58,7 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct).ConfigureAwait(false);
-        return new ModelReply(Normalise(payload), []);
+        return new ModelReply(Normalise(payload), ToolCalls(payload));
     }
 
     internal static string Normalise(JsonElement payload)
@@ -64,6 +73,35 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
         catch (KeyNotFoundException)
         {
             return "(no text)";
+        }
+    }
+
+    /// <summary>tool_calls[].function.arguments is a JSON-encoded string.</summary>
+    internal static IReadOnlyList<ModelToolCall> ToolCalls(JsonElement payload)
+    {
+        try
+        {
+            var message = payload.GetProperty("choices")[0].GetProperty("message");
+            var calls = new List<ModelToolCall>();
+            if (message.TryGetProperty("tool_calls", out var list) && list.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var entry in list.EnumerateArray())
+                {
+                    var function = entry.GetProperty("function");
+                    var name = function.GetProperty("name").GetString() ?? "";
+                    var args = JsonDocument.Parse(function.GetProperty("arguments").GetString() ?? "{}");
+                    calls.Add(new ModelToolCall(name, ToolArgs.From(args.RootElement)));
+                }
+            }
+            return calls;
+        }
+        catch (KeyNotFoundException)
+        {
+            return [];
+        }
+        catch (JsonException)
+        {
+            return [];
         }
     }
 

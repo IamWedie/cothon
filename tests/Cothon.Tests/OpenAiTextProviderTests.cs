@@ -98,6 +98,57 @@ public class OpenAiTextProviderTests
     private static async Task<string> BodyOf(HttpRequestMessage? request) =>
         await new StreamReader(request!.Content!.ReadAsStream()).ReadToEndAsync();
 
+    [Fact]
+    public async Task Tools_are_declared_as_functions_in_the_payload()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = stub(req => { captured = req; return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}", System.Text.Encoding.UTF8, "application/json"),
+        }; });
+        var provider = new OpenAiTextProvider("k", transport: handler);
+        var request = new ModelRequest("You are Cothon.", [], "say hi")
+        {
+            Tools = [new ToolSpec("memory_save", "Store a durable fact.")],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await BodyOf(captured);
+        Assert.Contains("\"tools\"", body);
+        Assert.Contains("memory_save", body);
+        Assert.Contains("Store a durable fact.", body);
+    }
+
+    [Fact]
+    public async Task Tool_call_reply_is_parsed_from_the_function_arguments_json()
+    {
+        var reply = $$"""
+{
+  "choices": [ { "message": {
+    "content": null,
+    "tool_calls": [ { "type": "function", "function": {
+      "name": "memory_save",
+      "arguments": "{\"key\":\"coffee\",\"value\":\"oat\",\"category\":\"personal\"}"
+    } } ]
+  } } ]
+}
+""";
+        var handler = stub(_ => new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(reply, System.Text.Encoding.UTF8, "application/json"),
+        });
+        var provider = new OpenAiTextProvider("k", transport: handler);
+
+        var result = await provider.CompleteAsync(new ModelRequest("S", [], "t"));
+
+        var call = Assert.Single(result.ToolCalls);
+        Assert.Equal("memory_save", call.Name);
+        Assert.Equal("coffee", call.Args["key"]);
+        Assert.Equal("oat", call.Args["value"]);
+        Assert.Equal("personal", call.Args["category"]);
+    }
+
     private static HttpMessageHandler stub(Func<HttpRequestMessage, HttpResponseMessage> reply) =>
         new StubHandler(reply);
 

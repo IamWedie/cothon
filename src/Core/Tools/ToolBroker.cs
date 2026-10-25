@@ -1,4 +1,5 @@
 using Cothon.Core.Policy;
+using Cothon.Core.Sessions;
 using Cothon.Core.Undo;
 
 namespace Cothon.Core.Tools;
@@ -22,6 +23,20 @@ public sealed class ToolBroker
         _policy = policy;
         _approval = approval;
         _undo = undo;
+    }
+
+    /// <summary>What the model sees as callable; descriptions drive the prompt surface.</summary>
+    public IReadOnlyList<ToolSpec> Specs => [.. _registry.All.Select(SpecOf)];
+
+    private static ToolSpec SpecOf(ITool tool)
+    {
+        var segments = new List<string>();
+        if (tool.Definition.Description.Length > 0)
+            segments.Add(tool.Definition.Description);
+        if (tool.Definition.Parameters.Count > 0)
+            segments.Add(string.Join("; ", tool.Definition.Parameters.Select(p =>
+                $"{p.Name}{(p.Required ? "*" : "")}: {p.Description}")));
+        return new ToolSpec(tool.Definition.Name, string.Join(" | ", segments));
     }
 
     public async Task<ToolResult> InvokeAsync(string toolName, IReadOnlyDictionary<string, object?>? args = null, CancellationToken ct = default)

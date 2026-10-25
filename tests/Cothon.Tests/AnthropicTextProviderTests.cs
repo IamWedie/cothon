@@ -1,4 +1,4 @@
-using Cothon.Core.Providers;
+﻿using Cothon.Core.Providers;
 using Cothon.Core.Screen;
 using Cothon.Core.Sessions;
 using Xunit;
@@ -116,4 +116,46 @@ public class AnthropicTextProviderTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
             => throw new InvalidOperationException("no HTTP expected");
     }
+
+    [Fact]
+    public async Task Tools_are_declared_in_the_payload()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHandler(req => { captured = req; return OkJson("{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}"); });
+        var provider = new AnthropicTextProvider("k", transport: handler);
+        var request = new ModelRequest("You are Cothon.", [], "say hi")
+        {
+            Tools = [new ToolSpec("memory_save", "Store a durable fact.")],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await new StreamReader(captured!.Content!.ReadAsStream()).ReadToEndAsync();
+        Assert.Contains("\"tools\"", body);
+        Assert.Contains("memory_save", body);
+        Assert.Contains("Store a durable fact.", body);
+    }
+
+    [Fact]
+    public async Task Tool_use_reply_is_parsed_into_a_tool_call()
+    {
+        var json = """
+{
+  "content": [
+    { "type": "tool_use", "id": "tu_1", "name": "memory_save", "input": { "key": "coffee", "value": "oat", "category": "personal" } }
+  ]
 }
+""";
+        var handler = new StubHandler(_ => OkJson(json));
+        var provider = new AnthropicTextProvider("k", transport: handler);
+
+        var reply = await provider.CompleteAsync(new ModelRequest("S", [], "t"));
+
+        var call = Assert.Single(reply.ToolCalls);
+        Assert.Equal("memory_save", call.Name);
+        Assert.Equal("coffee", call.Args["key"]);
+        Assert.Equal("oat", call.Args["value"]);
+        Assert.Equal("personal", call.Args["category"]);
+    }
+}
+

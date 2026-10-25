@@ -27,17 +27,26 @@ public sealed class GeminiTextProvider(string apiKey, string model = "gemini-2.5
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Gemini API key is not configured.");
 
-        var body = new
-        {
-            system_instruction = new { parts = new[] { new { text = request.SystemPrompt } } },
-            contents = request.History
-                .Select(m => new
+        var contents = request.History
+            .Select(m => new
+            {
+                role = m.Author == Author.Assistant ? "model" : "user",
+                parts = TextOnly(m),
+            })
+            .Concat([CurrentUserTurn(request.UserText, request.Screens)]);
+        var system = new { parts = new[] { new { text = request.SystemPrompt } } };
+
+        object body = request.Tools is { Count: > 0 }
+            ? new
+            {
+                system_instruction = system,
+                contents,
+                tools = new[]
                 {
-                    role = m.Author == Author.Assistant ? "model" : "user",
-                    parts = TextOnly(m),
-                })
-                .Concat([CurrentUserTurn(request.UserText, request.Screens)]),
-        };
+                    new { functionDeclarations = request.Tools.Select(t => new { name = t.Name, description = t.Description }) },
+                },
+            }
+            : new { system_instruction = system, contents };
 
         using var response = await _http.PostAsJsonAsync(
             $"{Endpoint(model)}?key={apiKey}", body, PayloadOptions, ct).ConfigureAwait(false);
@@ -49,8 +58,7 @@ public sealed class GeminiTextProvider(string apiKey, string model = "gemini-2.5
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct).ConfigureAwait(false);
-        var text = Normalise(payload);
-        return new ModelReply(text, []);
+        return new ModelReply(Normalise(payload), ToolCalls(payload));
     }
 
     private static object TextOnly(ChatMessage m) => new
@@ -96,6 +104,28 @@ public sealed class GeminiTextProvider(string apiKey, string model = "gemini-2.5
         catch (KeyNotFoundException)
         {
             return "(no text)";
+        }
+    }
+
+    /// <summary>Collects functionCall parts into ModelToolCalls; text-only replies get none.</summary>
+    internal static IReadOnlyList<ModelToolCall> ToolCalls(JsonElement payload)
+    {
+        try
+        {
+            return payload.GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")
+                .EnumerateArray()
+                .Where(part => part.TryGetProperty("functionCall", out _))
+                .Select(part => part.GetProperty("functionCall"))
+                .Select(fc => new ModelToolCall(
+                    fc.GetProperty("name").GetString() ?? "",
+                    ToolArgs.From(fc.GetProperty("args"))))
+                .ToList();
+        }
+        catch (KeyNotFoundException)
+        {
+            return [];
         }
     }
 }
