@@ -131,11 +131,20 @@ public partial class MainWindowViewModel : ObservableObject
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Cothon", "sandbox");
         registry.Register(new Core.Files.FileTool(new Core.Files.PathPolicy(root)));
+
+        var stored = Core.Settings.AppSettings.Load();
+        var provider = ChooseProvider(stored);
         return new Core.Sessions.AgentLoop(
-            new Core.Sessions.EchoModelProvider(),
+            provider,
             new Core.Tools.ToolBroker(
                 registry, new Core.Policy.PolicyEngine(), gate, new Core.Undo.UndoLedger()));
     }
+
+    /// <summary>Gemini only with a key present; echo stays the quiet fallback.</summary>
+    private static Core.Sessions.IModelProvider ChooseProvider(Core.Settings.AppSettings stored)
+        => stored.ModelProvider == "gemini" && stored.GeminiApiKey.Length > 0
+            ? new Core.Providers.GeminiTextProvider(stored.GeminiApiKey)
+            : new Core.Sessions.EchoModelProvider();
 
     /// <summary>Hotkey and orb tap both land here; Core guards mid-turn calls.</summary>
     [RelayCommand]

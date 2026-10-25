@@ -24,4 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Core\Cothon.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cothon.Tests" />
+  </ItemGroup>
 </Project>

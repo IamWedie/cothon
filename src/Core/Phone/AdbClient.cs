@@ -46,7 +46,7 @@ public static class AdbTransport
 /// Shell pipelines are exempt from exit-code checks because grep/find exit
 /// nonzero when they simply find nothing.
 /// </summary>
-public class AdbClient(string adbPath, string host, int port = 5555, string? serial = null)
+public class AdbClient(string adbPath, string host, int port = 5555, string? serial = null) : IDeviceConnector
 {
     private readonly string _deviceId = string.IsNullOrWhiteSpace(host) ? (serial ?? "") : $"{host}:{port}";
 

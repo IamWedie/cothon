@@ -24,18 +24,27 @@ public partial class MainWindow : Window
             Dispatcher.UIThread.Post(() => DrawerScroll.ScrollToEnd(), DispatcherPriority.Background);
     }
 
-    /// <summary>Register Ctrl+Alt+Space OS-wide; degrade gracefully if in use.</summary>
+    private void OnSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        var settings = new SettingsWindow(new SettingsViewModel());
+        settings.Show();
+    }
+
+    /// <summary>Register the settings-chosen hotkey OS-wide; degrade gracefully if in use.</summary>
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (_hotkeyHost is not null)
             return;
+
+        var stored = Core.Settings.AppSettings.Load();
+        var chordText = string.IsNullOrWhiteSpace(stored.Hotkey) ? "Ctrl+Alt+Space" : stored.Hotkey;
 
         var host = new Win32HotkeyHost();
         _hotkeyHost = host;
         try
         {
             host.Start(
-                HotkeyChord.Parse("Ctrl+Alt+Space"),
+                HotkeyChord.Parse(chordText),
                 () => Dispatcher.UIThread.Post(_vm.ToggleMic),
                 new AvaloniaDispatcherBridge());
         }
