@@ -310,8 +310,47 @@ public partial class MainWindowViewModel : ObservableObject
         _recorder.BeginListening(); // keep the conversation rolling while armed
     }
 
-    internal async Task<string?> TranscribeForRealAsync(VoiceClip clip)
+    /// <summary>Speak turn seam for tests; default synthesizes through Gemini TTS.</summary>
+    internal Func<string, Task<Cothon.Core.Speech.SpokenAudio?>>? Speaker { get; set; }
+
+    /// <summary>Playback sink for tests; default is the Windows wave player.</summary>
+    internal Core.Speech.IAudioPlayer? Player { get; set; } = new Core.Speech.WindowsWavePlayer();
+
+    private async Task SpeakOut(string text)
     {
+        // in test-shaped VMs (Transcription seam set) stay silent unless a speaker seam is explicit
+        if (Speaker is null && Transcription is not null)
+            return;
+
+        Func<string, Task<Cothon.Core.Speech.SpokenAudio?>>? speaker =
+            Speaker ?? await RealSpeakerAsync();
+        if (speaker is null)
+            return;
+        try
+        {
+            var audio = await speaker(text).ConfigureAwait(false);
+            if (audio is not null)
+                Player?.Play(audio);
+        }
+        catch (Exception ex)
+        {
+            UiPost(() => NoteSystem($"Speaking could not run: {ex.Message}"));
+        }
+    }
+
+    /// <summary>Real speech needs Gemini voice support and a key; other providers are text-only.</summary>
+    internal Task<Func<string, Task<Cothon.Core.Speech.SpokenAudio?>>?> RealSpeakerAsync()
+    {
+        var settings = Core.Settings.AppSettings.Load();
+        if (!settings.SpeechEnabled || settings.ModelProvider is not "gemini" || string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+            return Task.FromResult<Func<string, Task<Cothon.Core.Speech.SpokenAudio?>>?>(null);
+
+        var speaker = new Core.Speech.GeminiSpeaker(settings.GeminiApiKey);
+        Func<string, Task<Cothon.Core.Speech.SpokenAudio?>> call = text => speaker.SpeakAsync(text);
+        return Task.FromResult<Func<string, Task<Cothon.Core.Speech.SpokenAudio?>>?>(call);
+    }
+
+    internal async Task<string?> TranscribeForRealAsync(VoiceClip clip)    {
         var settings = Core.Settings.AppSettings.Load();
         if (settings.ModelProvider is not "gemini" || string.IsNullOrWhiteSpace(settings.GeminiApiKey))
         {
@@ -423,11 +462,12 @@ public partial class MainWindowViewModel : ObservableObject
             }
             _history.AddRange(messages);
 
-            var said = messages.LastOrDefault(m => m.Author == Core.Sessions.Author.Assistant);
-            AssistantCaption = said is { Text.Length: > 0 } ? said.Text : "Done.";
-            _session.StartSpeaking();
-            await Task.Delay(700, ct);
-            _session.EndTurn();
+        var said = messages.LastOrDefault(m => m.Author == Core.Sessions.Author.Assistant);
+        AssistantCaption = said is { Text.Length: > 0 } ? said.Text : "Done.";
+        _session.StartSpeaking();
+        _ = SpeakOut(said?.Text ?? "Done.");
+        await Task.Delay(700, ct);
+        _session.EndTurn();
         }
         catch (OperationCanceledException)
         {

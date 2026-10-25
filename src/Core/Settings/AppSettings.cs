@@ -19,6 +19,9 @@ public sealed class AppSettings
     /// <summary>Screen awareness: capture on each message (user-requested).</summary>
     public bool ScreenCapture { get; set; } = true;
 
+    /// <summary>Speak the final answer aloud through Gemini TTS.</summary>
+    public bool SpeechEnabled { get; set; } = true;
+
     /// <summary>light | dark | system (case-insensitive; anything else is light).</summary>
     public string Appearance
     {

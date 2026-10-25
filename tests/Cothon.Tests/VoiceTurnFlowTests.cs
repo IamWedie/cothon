@@ -1,5 +1,6 @@
 ﻿using Cothon.Core.Audio;
 using Cothon.Core.Sessions;
+using Cothon.Core.Speech;
 using Cothon.Ui.ViewModels;
 using Xunit;
 
@@ -130,6 +131,35 @@ public sealed class VoiceTurnFlowTests
         mic.Say(Loud());
 
         Assert.True(vm.MicLevel > 0.2);
+    }
+
+    [Fact]
+    public async Task Final_answer_is_spoken_through_the_player_seam()
+    {
+        var mic = new FakeMic();
+        var vm = VoiceVm(mic);
+        var spoken = new List<string>();
+        vm.Speaker = text =>
+        {
+            spoken.Add(text);
+            return Task.FromResult<SpokenAudio?>(new SpokenAudio(PcmBytes: [1, 2], SampleRate: 24000, MimeType: "audio/L16"));
+        };
+        var played = new List<SpokenAudio>();
+        vm.Player = new PlaySink(played);
+        vm.ToggleMic();
+
+        mic.Say(Loud());
+        mic.Say(Loud());
+        for (var i = 0; i < 120; i++)
+            mic.Say(Quiet());
+
+        await WaitUntil(() => played.Count > 0);
+        Assert.Equal("[echo] open the window", spoken.Single());
+    }
+
+    private sealed class PlaySink(List<SpokenAudio> sink) : IAudioPlayer
+    {
+        public void Play(SpokenAudio audio) => sink.Add(audio);
     }
 
     private static async Task WaitUntil(Func<bool> condition, int timeoutMs = 5000)
