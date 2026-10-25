@@ -22,6 +22,17 @@ public sealed class SiriOrb : Control
         set => SetValue(StateProperty, value);
     }
 
+    /// <summary>Live mic loudness 0..1; while listening the rings pulse with the voice.</summary>
+    public static readonly StyledProperty<double> AmplitudeProperty =
+        AvaloniaProperty.Register<SiriOrb, double>(
+            nameof(Amplitude), 0.0);
+
+    public double Amplitude
+    {
+        get => GetValue(AmplitudeProperty);
+        set => SetValue(AmplitudeProperty, value);
+    }
+
     private static readonly IBrush RingFar = new SolidColorBrush(Color.Parse("#0A84FF"));
     private static readonly IBrush RingMid = new SolidColorBrush(Color.Parse("#5AC8FA"));
     private static readonly IBrush RingNear = new SolidColorBrush(Color.Parse("#64D2FF"));
@@ -37,6 +48,7 @@ public sealed class SiriOrb : Control
     public SiriOrb()
     {
         StateProperty.Changed.AddClassHandler<SiriOrb>((o, _) => o.InvalidateVisual());
+        AmplitudeProperty.Changed.AddClassHandler<SiriOrb>((o, _) => o.InvalidateVisual());
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -75,6 +87,9 @@ public sealed class SiriOrb : Control
             VoiceSessionState.Speaking => (1.60, 5.0, 1.00),
             _ => (0.35, 1.0, 0.45),
         };
+
+        if (State == VoiceSessionState.Listening)
+            amplitude *= 0.55 + 0.9 * Math.Clamp(Amplitude, 0, 1);
 
         var t = _phase * tempo;
 

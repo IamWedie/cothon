@@ -95,7 +95,7 @@
             <Border Tapped="OnOrbTapped" Cursor="Hand"
                     Width="220" Height="220" Background="Transparent"
                     HorizontalAlignment="Center">
-                <controls:SiriOrb State="{Binding SessionState}" />
+                <controls:SiriOrb State="{Binding SessionState}" Amplitude="{Binding MicLevel}" />
             </Border>
 
             <TextBlock Text="{Binding UserCaption}" FontSize="12" Foreground="{DynamicResource C.TextDim}"

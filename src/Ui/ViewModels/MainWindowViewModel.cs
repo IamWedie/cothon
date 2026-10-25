@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Cothon.Core.Audio;
 
 namespace Cothon.Ui.ViewModels;
 
@@ -55,9 +57,12 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly Core.Sessions.AgentLoop _loop;
     private readonly Core.Sessions.VoiceSession _session = new();
+    private readonly VoiceRecorder _recorder = new();
     private readonly List<Core.Sessions.ChatMessage> _history = [];
     private readonly HashSet<string> _alwaysApproved = [];
     private TaskCompletionSource<bool>? _approvalTcs;
+    private IAudioSource? _mic;
+    private bool _capturing;
 
     [ObservableProperty]
     private string _presence = StateText(Core.Sessions.VoiceSessionState.Idle);
@@ -86,11 +91,24 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private ApprovalCard? _pendingApproval;
 
+    /// <summary>Live mic loudness 0..1, drives the orb while listening.</summary>
+    [ObservableProperty]
+    private double _micLevel;
+
     public ObservableCollection<TimelineItem> Timeline { get; } = [];
 
     public bool HasUserCaption => UserCaption.Length > 0;
 
     public bool HasPendingApproval => PendingApproval is not null;
+
+    /// <summary>Mic seam for tests; default is the real Windows capture.</summary>
+    internal Func<IAudioSource>? MicSourceFactory { get; set; } = () => new WindowsMicSource();
+
+    /// <summary>Transcription seam for tests; default uses Gemini with the stored key.</summary>
+    internal Func<VoiceClip, Task<string?>>? Transcription { get; set; }
+
+    /// <summary>Realtime handoff to the UI thread; tests run it inline.</summary>
+    internal Action<Action> UiPost { get; set; } = action => Dispatcher.UIThread.Post(action);
 
     public MainWindowViewModel()
     {
@@ -103,6 +121,7 @@ public partial class MainWindowViewModel : ObservableObject
             MicOn = _session.MicOn;
             Presence = StateText(_session.State);
         };
+        _recorder.ClipEnded += clip => UiPost(() => OnVoiceClip(clip));
 
         // A provider chosen in Settings without a key is spoken, not silent.
         var stored = Core.Settings.AppSettings.Load();
@@ -130,6 +149,7 @@ public partial class MainWindowViewModel : ObservableObject
             MicOn = _session.MicOn;
             Presence = StateText(_session.State);
         };
+        _recorder.ClipEnded += clip => UiPost(() => OnVoiceClip(clip));
     }
 
     private static string StateText(Core.Sessions.VoiceSessionState state) => state switch
@@ -188,6 +208,103 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>Hotkey and orb tap both land here; Core guards mid-turn calls.</summary>
     [RelayCommand]
     public void ToggleMic() => _session.ToggleMic();
+
+    partial void OnMicOnChanged(bool value)
+    {
+        if (value)
+            StartVoiceCapture();
+        else
+            StopVoiceCapture();
+    }
+
+    private void StartVoiceCapture()
+    {
+        if (_capturing)
+            return;
+        _capturing = true;
+        _recorder.BeginListening();
+        var mic = MicSourceFactory?.Invoke();
+        if (mic is null)
+        {
+            NoteSystem("No microphone source is available this session.");
+            _capturing = false;
+            return;
+        }
+        _mic = mic;
+        mic.Start();
+        if (mic is WindowsMicSource windows)
+            windows.Error += message => UiPost(() =>
+            {
+                NoteSystem(message);
+                if (_session.State is Core.Sessions.VoiceSessionState.Listening)
+                    StopVoiceCapture();
+            });
+        mic.Frame += frame => UiPost(() =>
+        {
+            _recorder.OnFrame(frame);
+            MicLevel = _recorder.Level;
+        });
+        if (mic is not WindowsMicSource)
+            NoteSystem("Only a stub microphone is active — real audio needs the Windows host.");
+    }
+
+    private void StopVoiceCapture()
+    {
+        if (!_capturing)
+            return;
+        _capturing = false;
+        MicLevel = 0;
+        // let a mid-speech clip flush before the device goes away
+        _recorder.StopListening();
+        _mic?.Stop();
+        if (_mic is IDisposable disposable)
+            disposable.Dispose();
+        _mic = null;
+    }
+
+    private void OnVoiceClip(Core.Audio.VoiceClip clip)
+    {
+        if (!_capturing)
+            return;
+        _ = SpeakTurnAsync(clip);
+    }
+
+    private async Task SpeakTurnAsync(VoiceClip clip)
+    {
+        string? transcript = null;
+        try
+        {
+            transcript = Transcription is not null
+                ? await Transcription(clip)
+                : await TranscribeForRealAsync(clip);
+        }
+        catch (Exception ex)
+        {
+            NoteSystem($"I couldn't transcribe that: {ex.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(transcript))
+        {
+            NoteSystem("You didn't say anything I could make out.");
+        }
+        else
+        {
+            await RunTurn(transcript, CancellationToken.None);
+        }
+
+        _recorder.BeginListening(); // keep the conversation rolling while armed
+    }
+
+    internal async Task<string?> TranscribeForRealAsync(VoiceClip clip)
+    {
+        var settings = Core.Settings.AppSettings.Load();
+        if (settings.ModelProvider is not "gemini" || string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        {
+            NoteSystem("Speech understanding needs the Gemini provider and a key — speaking only works there right now.");
+            return null;
+        }
+        return await new GeminiTranscriber(settings.GeminiApiKey).TranscribeAsync(clip);
+    }
 
     /// <summary>Visible system notes (hotkey failures etc.) land in captions + timeline.</summary>
     public void NoteSystem(string text)
@@ -253,6 +370,14 @@ public partial class MainWindowViewModel : ObservableObject
             or Core.Sessions.VoiceSessionState.Speaking)
             return;
         Input = "";
+        await RunTurn(text, ct);
+    }
+
+    private async Task RunTurn(string text, CancellationToken ct)
+    {
+        if (_session.State is Core.Sessions.VoiceSessionState.Thinking
+            or Core.Sessions.VoiceSessionState.Speaking)
+            return;
         HasMessages = true;
         UserCaption = text;
         AssistantCaption = "";
