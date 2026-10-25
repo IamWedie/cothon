@@ -14,6 +14,8 @@ public sealed class AppSettings
     public string PhoneHost { get; set; } = "";
     public int PhonePort { get; set; } = 5555;
     public string AdbPath { get; set; } = "";
+    /// <summary>Screen awareness: capture on each message (user-requested).</summary>
+    public bool ScreenCapture { get; set; } = true;
 
     public static string Folder { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cothon");

@@ -133,6 +133,7 @@ public partial class MainWindowViewModel : ObservableObject
         registry.Register(new Core.Files.FileTool(new Core.Files.PathPolicy(root)));
 
         var stored = Core.Settings.AppSettings.Load();
+        ScreenCaptureEnabled = stored.ScreenCapture;
         var provider = ChooseProvider(stored);
         return new Core.Sessions.AgentLoop(
             provider,
@@ -145,6 +146,12 @@ public partial class MainWindowViewModel : ObservableObject
         => stored.ModelProvider == "gemini" && stored.GeminiApiKey.Length > 0
             ? new Core.Providers.GeminiTextProvider(stored.GeminiApiKey)
             : new Core.Sessions.EchoModelProvider();
+
+    /// <summary>Screen-reading switch honoured per user choice; seam for tests.</summary>
+    internal static bool ScreenCaptureEnabled { get; private set; }
+
+    internal Func<Core.Screen.ScreenFrame?> ScreenGetter { get; set; } =
+        Core.Screen.SystemScreenCapture.Capture;
 
     /// <summary>Hotkey and orb tap both land here; Core guards mid-turn calls.</summary>
     [RelayCommand]
@@ -218,9 +225,12 @@ public partial class MainWindowViewModel : ObservableObject
         UserCaption = text;
         AssistantCaption = "";
         _session.StartThinking();
+        Core.Screen.ScreenFrame? frame = ScreenCaptureEnabled ? ScreenGetter() : null;
+        if (frame is not null)
+            Timeline.Add(new SystemItem($"Screen captured ({frame.Width}×{frame.Height}) and read with this message."));
         try
         {
-            var messages = await _loop.RunAsync(_history, text, ct);
+            var messages = await _loop.RunAsync(_history, text, frame, ct);
             foreach (var m in messages)
             {
                 switch (m.Author)

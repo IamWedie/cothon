@@ -30,6 +30,7 @@ public class AppSettingsTests
         Assert.Equal("", settings.PhoneHost);
         Assert.Equal(5555, settings.PhonePort);
         Assert.Equal("", settings.AdbPath);
+        Assert.True(settings.ScreenCapture);
     }
 
     [Fact]

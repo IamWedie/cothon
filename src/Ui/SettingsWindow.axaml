@@ -91,6 +91,14 @@
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding MemoryLogging}"
                                       HorizontalAlignment="Right" />
                     </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Read my screen" FontSize="12" Foreground="#3C3C43" />
+                            <TextBlock Text="One capture per message, marked in the conversation." FontSize="11" Foreground="#86868B" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ScreenCapture}"
+                                      HorizontalAlignment="Right" />
+                    </Grid>
                 </StackPanel>
 
                 <!-- General -->

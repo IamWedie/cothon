@@ -28,6 +28,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _memoryLogging = true;
 
     [ObservableProperty]
+    private bool _screenCapture = true;
+
+    [ObservableProperty]
     private string _hotkey = "Ctrl+Alt+Space";
 
     [ObservableProperty]
@@ -56,6 +59,7 @@ public partial class SettingsViewModel : ObservableObject
         Provider = string.IsNullOrWhiteSpace(stored.ModelProvider) ? "echo" : stored.ModelProvider;
         GeminiApiKey = stored.GeminiApiKey;
         MemoryLogging = stored.MemoryLogging;
+        ScreenCapture = stored.ScreenCapture;
         Hotkey = stored.Hotkey;
         PhoneHost = stored.PhoneHost;
         PhonePort = stored.PhonePort.ToString();
@@ -89,6 +93,7 @@ public partial class SettingsViewModel : ObservableObject
             ? "gemini" : "echo";
         _stored.GeminiApiKey = GeminiApiKey.Trim();
         _stored.MemoryLogging = MemoryLogging;
+        _stored.ScreenCapture = ScreenCapture;
         _stored.Hotkey = Hotkey.Trim();
         _stored.PhoneHost = PhoneHost.Trim();
         _stored.AdbPath = AdbPath.Trim();

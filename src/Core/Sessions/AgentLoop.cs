@@ -1,3 +1,4 @@
+using Cothon.Core.Screen;
 using Cothon.Core.Tools;
 
 namespace Cothon.Core.Sessions;
@@ -9,13 +10,23 @@ namespace Cothon.Core.Sessions;
 /// </summary>
 public sealed class AgentLoop(IModelProvider provider, ToolBroker broker)
 {
-    public async Task<IReadOnlyList<ChatMessage>> RunAsync(IReadOnlyList<ChatMessage> history, string userText, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ChatMessage>> RunAsync(
+        IReadOnlyList<ChatMessage> history, string userText,
+        CancellationToken ct = default)
+        => await RunAsync(history, userText, screen: null, ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<ChatMessage>> RunAsync(
+        IReadOnlyList<ChatMessage> history, string userText,
+        ScreenFrame? screen, CancellationToken ct = default)
     {
         var user = new ChatMessage(Guid.NewGuid().ToString("N"), Author.User, userText, DateTimeOffset.UtcNow);
         var outgoing = new List<ChatMessage> { user };
 
         var reply = await provider.CompleteAsync(
-            new ModelRequest("You are Cothon.", history, userText), ct).ConfigureAwait(false);
+            new ModelRequest("You are Cothon.", history, userText)
+            {
+                Screens = screen is null ? [] : [screen],
+            }, ct).ConfigureAwait(false);
 
         foreach (var call in reply.ToolCalls)
         {

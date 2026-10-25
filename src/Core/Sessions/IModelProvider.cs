@@ -1,9 +1,16 @@
+using Cothon.Core.Screen;
+
 namespace Cothon.Core.Sessions;
 
 /// <summary>What the agent loop asks the model for and what comes back.</summary>
-public sealed record ModelRequest(string SystemPrompt, IReadOnlyList<ChatMessage> History, string UserText)
+/// <param name="Screens">Optional frames (e.g. the user's screen) read this turn.</param>
+public sealed record ModelRequest(
+    string SystemPrompt,
+    IReadOnlyList<ChatMessage> History,
+    string UserText)
 {
     public IReadOnlyList<ToolSpec>? Tools { get; init; }
+    public IReadOnlyList<ScreenFrame> Screens { get; init; } = [];
 }
 
 public sealed record ToolSpec(string Name, string Description);
