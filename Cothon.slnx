@@ -3,6 +3,9 @@
   <Folder Name="/src/Core/">
     <Project Path="src/Core/Cothon.Core.csproj" />
   </Folder>
+  <Folder Name="/src/Mcp/">
+    <Project Path="src/Mcp/Cothon.Mcp.csproj" />
+  </Folder>
   <Folder Name="/src/Ui/">
     <Project Path="src/Ui/Cothon.App.csproj" />
   </Folder>
