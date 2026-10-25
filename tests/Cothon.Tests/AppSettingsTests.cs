@@ -132,6 +132,26 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void Mcp_server_configs_round_trip()
+    {
+        var settings = new AppSettings
+        {
+            McpServers =
+            [
+                new Cothon.Core.Settings.McpServerConfig { Name = "notes", Command = "dev.exe", Args = "--stdio" },
+            ],
+        };
+        settings.Save();
+
+        var loaded = AppSettings.Load();
+
+        var server = Assert.Single(loaded.McpServers);
+        Assert.Equal("notes", server.Name);
+        Assert.Equal("dev.exe", server.Command);
+        Assert.Equal("--stdio", server.Args);
+    }
+
+    [Fact]
     public void Corrupt_cipher_falls_back_to_empty()
     {
         var tampered = """{ "GeminiKeyCipher": "!!!not base64!!!" }""";

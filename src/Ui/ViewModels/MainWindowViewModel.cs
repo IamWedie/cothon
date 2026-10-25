@@ -127,6 +127,9 @@ public partial class MainWindowViewModel : ObservableObject
         var stored = Core.Settings.AppSettings.Load();
         if (needsKey(stored.ModelProvider) && !hasKey(stored, stored.ModelProvider))
             NoteSystem($"{stored.ModelProvider} is selected but its API key is empty — using echo until you paste one in Settings.");
+        foreach (var note in BootstrapNotes)
+            NoteSystem(note);
+        BootstrapNotes.Clear();
     }
 
     private static bool needsKey(string provider) =>
@@ -160,6 +163,9 @@ public partial class MainWindowViewModel : ObservableObject
         _ => "Ready",
     };
 
+    /// <summary>Notes gathered while the default loop was built (MCP registration et al.), flushed to the timeline at boot.</summary>
+    internal static readonly List<string> BootstrapNotes = [];
+
     private static Core.Sessions.AgentLoop BuildDefaultLoop(ForwardGate gate)
     {
         var registry = new Core.Tools.ToolRegistry();
@@ -184,6 +190,15 @@ public partial class MainWindowViewModel : ObservableObject
             registry.Register(new Core.Phone.PhoneTool(
                 new Core.Phone.AdbClient(adb, stored.PhoneHost, stored.PhonePort),
                 new Core.Files.PathPolicy(root)));
+        if (stored.McpServers.Count > 0)
+        {
+            foreach (var note in Core.Mcp.McpTools.Register(
+                registry,
+                stored.McpServers,
+                Core.Mcp.McpTools.DefaultConnect,
+                message => BootstrapNotes.Add(message)))
+                BootstrapNotes.Add(note);
+        }
         var provider = ChooseProvider(stored);
         return new Core.Sessions.AgentLoop(
             provider,

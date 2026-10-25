@@ -79,6 +79,9 @@ public sealed class AppSettings
     /// <summary>Speak the final answer aloud through Gemini TTS.</summary>
     public bool SpeechEnabled { get; set; } = true;
 
+    /// <summary>External MCP servers conferring extra tools.</summary>
+    public List<McpServerConfig> McpServers { get; set; } = [];
+
     /// <summary>light | dark | system (case-insensitive; anything else is light).</summary>
     public string Appearance
     {
