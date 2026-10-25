@@ -1,11 +1,65 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Cothon.App"
-             RequestedThemeVariant="Light">
+             x:Class="Cothon.App">
 
     <Application.Resources>
-        <!-- Visible + text, never colour alone -->
-        <Color x:Key="StatusDot">#34C759</Color>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="C.Bg">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Surface">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.SurfaceAlt">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Title">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Text">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.TextDim">#86868B</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.TextFaint">#A1A1A8</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Label">#3C3C43</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Border">#E5E5EA</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.BorderStrong">#E0E0E3</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Accent">#0071E3</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AccentText">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Link">#0071E3</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.UserBubble">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.UserBubbleText">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AssistantBubble">#E9E9EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AssistantBubbleText">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Danger">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DotOn">#34C759</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DotOff">#C7C7CC</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DrawerBg">#FAFFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.PillBg">#FCFFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DangerSurface">#FFFFFF</SolidColorBrush>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="C.Bg">#1C1C1E</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Surface">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.SurfaceAlt">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Title">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Text">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.TextDim">#98989F</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.TextFaint">#6E6E73</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Label">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Border">#38383A</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.BorderStrong">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Accent">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AccentText">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Link">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.UserBubble">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.UserBubbleText">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AssistantBubble">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.AssistantBubbleText">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.Danger">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DotOn">#34C759</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DotOff">#6E6E73</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DrawerBg">#F22C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.PillBg">#F82C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="C.DangerSurface">#2C2C2E</SolidColorBrush>
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>

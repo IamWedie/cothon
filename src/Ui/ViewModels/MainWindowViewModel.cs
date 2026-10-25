@@ -103,7 +103,23 @@ public partial class MainWindowViewModel : ObservableObject
             MicOn = _session.MicOn;
             Presence = StateText(_session.State);
         };
+
+        // A provider chosen in Settings without a key is spoken, not silent.
+        var stored = Core.Settings.AppSettings.Load();
+        if (needsKey(stored.ModelProvider) && !hasKey(stored, stored.ModelProvider))
+            NoteSystem($"{stored.ModelProvider} is selected but its API key is empty — using echo until you paste one in Settings.");
     }
+
+    private static bool needsKey(string provider) =>
+        provider is "gemini" or "openai" or "claude";
+
+    private static bool hasKey(Core.Settings.AppSettings stored, string provider) => provider switch
+    {
+        "gemini" => !string.IsNullOrWhiteSpace(stored.GeminiApiKey),
+        "openai" => !string.IsNullOrWhiteSpace(stored.OpenAiApiKey),
+        "claude" => !string.IsNullOrWhiteSpace(stored.AnthropicApiKey),
+        _ => false,
+    };
 
     internal MainWindowViewModel(Core.Sessions.AgentLoop loop)
     {
@@ -142,10 +158,26 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>Gemini only with a key present; echo stays the quiet fallback.</summary>
-    private static Core.Sessions.IModelProvider ChooseProvider(Core.Settings.AppSettings stored)
-        => stored.ModelProvider == "gemini" && stored.GeminiApiKey.Length > 0
-            ? new Core.Providers.GeminiTextProvider(stored.GeminiApiKey)
-            : new Core.Sessions.EchoModelProvider();
+    internal static Core.Sessions.IModelProvider ChooseProvider(Core.Settings.AppSettings stored)
+    {
+        var key = stored.ModelProvider switch
+        {
+            "gemini" => stored.GeminiApiKey,
+            "openai" => stored.OpenAiApiKey,
+            "claude" => stored.AnthropicApiKey,
+            _ => "",
+        };
+        return KeyedProvider(stored.ModelProvider, key);
+    }
+
+    private static Core.Sessions.IModelProvider KeyedProvider(string name, string key)
+        => (name, string.IsNullOrWhiteSpace(key)) switch
+        {
+            ("gemini", false) => new Core.Providers.GeminiTextProvider(key),
+            ("openai", false) => new Core.Providers.OpenAiTextProvider(key),
+            ("claude", false) => new Core.Providers.AnthropicTextProvider(key),
+            _ => new Core.Sessions.EchoModelProvider(),
+        };
 
     /// <summary>Screen-reading switch honoured per user choice; seam for tests.</summary>
     internal static bool ScreenCaptureEnabled { get; private set; }

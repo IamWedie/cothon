@@ -9,45 +9,45 @@
         x:DataType="vm:MainWindowViewModel"
         Title="Cothon" Width="720" Height="560" MinWidth="480" MinHeight="400"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
-        Background="#F5F5F7"
-        Foreground="#1D1D1F">
+        Background="{DynamicResource C.Bg}"
+        Foreground="{DynamicResource C.Text}">
 
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
     <Window.DataTemplates>
-        <!-- You: right, blue bubble -->
+        <!-- You: right, accent bubble -->
         <DataTemplate DataType="{x:Type vm:UserItem}">
             <Border HorizontalAlignment="Right" MaxWidth="440"
                     CornerRadius="18" Padding="12,8"
-                    Background="#007AFF" Margin="0,2">
+                    Background="{DynamicResource C.UserBubble}" Margin="0,2">
                 <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
-                           FontSize="13" Foreground="White" />
+                           FontSize="13" Foreground="{DynamicResource C.UserBubbleText}" />
             </Border>
         </DataTemplate>
 
-        <!-- Cothon: left, gray bubble -->
+        <!-- Cothon: left, soft bubble -->
         <DataTemplate DataType="{x:Type vm:AssistantItem}">
             <Border HorizontalAlignment="Left" MaxWidth="480"
                     CornerRadius="18" Padding="12,8"
-                    Background="#E9E9EB" Margin="0,2">
+                    Background="{DynamicResource C.AssistantBubble}" Margin="0,2">
                 <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
-                           FontSize="13" Foreground="#1D1D1F" />
+                           FontSize="13" Foreground="{DynamicResource C.AssistantBubbleText}" />
             </Border>
         </DataTemplate>
 
-        <!-- Tool: compact left card with status label -->
+        <!-- Tool: compact card with status label -->
         <DataTemplate DataType="{x:Type vm:ToolItem}">
             <Border HorizontalAlignment="Left" MaxWidth="480"
                     CornerRadius="10" Padding="10,7"
-                    Background="#FFFFFF" BorderBrush="#E5E5EA"
+                    Background="{DynamicResource C.Surface}" BorderBrush="{DynamicResource C.Border}"
                     BorderThickness="1" Margin="0,3">
                 <StackPanel Spacing="2">
                     <TextBlock Text="{Binding Label}" FontSize="11"
-                               Foreground="#86868B" />
+                               Foreground="{DynamicResource C.TextDim}" />
                     <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
-                               FontSize="12" Foreground="#1D1D1F" />
+                               FontSize="12" Foreground="{DynamicResource C.Text}" />
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -55,7 +55,7 @@
         <!-- System: centered whisper -->
         <DataTemplate DataType="{x:Type vm:SystemItem}">
             <TextBlock Text="{Binding Text}" FontSize="11"
-                       Foreground="#86868B" HorizontalAlignment="Center"
+                       Foreground="{DynamicResource C.TextDim}" HorizontalAlignment="Center"
                        Margin="0,2" />
         </DataTemplate>
     </Window.DataTemplates>
@@ -63,26 +63,26 @@
     <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
 
         <!-- ── Header: mic mirror, never color alone ───────────────── -->
-        <Border Grid.Row="0" BorderBrush="#E5E5EA" BorderThickness="0,0,0,1"
+        <Border Grid.Row="0" BorderBrush="{DynamicResource C.Border}" BorderThickness="0,0,0,1"
                 Background="Transparent" Padding="20,14">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="#34C759"
+                    <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="{DynamicResource C.DotOn}"
                              IsVisible="{Binding MicOn}" />
-                    <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="#C7C7CC"
+                    <Ellipse Width="8" Height="8" Margin="0,1,0,0" Fill="{DynamicResource C.DotOff}"
                              IsVisible="{Binding !MicOn}" />
                     <TextBlock Text="Cothon" FontSize="14" FontWeight="SemiBold"
-                               Foreground="#1D1D1F" VerticalAlignment="Center" />
+                               Foreground="{DynamicResource C.Title}" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Grid.Column="2" Text="{Binding Presence}" FontSize="12"
-                           Foreground="#86868B" VerticalAlignment="Center" />
+                           Foreground="{DynamicResource C.TextDim}" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4"
                             VerticalAlignment="Center">
                     <Button Content="Settings" Click="OnSettingsClick"
-                            FontSize="12" Foreground="#0071E3" Background="Transparent"
+                            FontSize="12" Foreground="{DynamicResource C.Link}" Background="Transparent"
                             Padding="8,2" CornerRadius="8" />
                     <Button Content="Conversation" Command="{Binding ToggleDrawerCommand}"
-                            FontSize="12" Foreground="#0071E3" Background="Transparent"
+                            FontSize="12" Foreground="{DynamicResource C.Link}" Background="Transparent"
                             Padding="8,2" CornerRadius="8"
                             IsVisible="{Binding HasMessages}" />
                 </StackPanel>
@@ -98,48 +98,49 @@
                 <controls:SiriOrb State="{Binding SessionState}" />
             </Border>
 
-            <TextBlock Text="{Binding UserCaption}" FontSize="12" Foreground="#86868B"
+            <TextBlock Text="{Binding UserCaption}" FontSize="12" Foreground="{DynamicResource C.TextDim}"
                        TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Center"
                        Margin="0,10,0,0" IsVisible="{Binding HasUserCaption}" />
 
             <TextBlock Text="{Binding AssistantCaption}" FontSize="22" FontWeight="SemiBold"
-                       Foreground="#1D1D1F" TextWrapping="Wrap" MaxWidth="560"
+                       Foreground="{DynamicResource C.Title}" TextWrapping="Wrap" MaxWidth="560"
                        HorizontalAlignment="Center" Margin="0,4,0,0" />
 
             <TextBlock Text="Type below, or tap the orb. Every action is checked and reversible."
-                       FontSize="12" Foreground="#86868B" HorizontalAlignment="Center"
+                       FontSize="12" Foreground="{DynamicResource C.TextDim}" HorizontalAlignment="Center"
                        Margin="0,6,0,0" />
         </StackPanel>
 
         <!-- ── Approval card: the human in the loop ────────────────── -->
         <Border Grid.Row="2" IsVisible="{Binding HasPendingApproval}"
-                Background="#FFFFFF" BorderBrush="#E5E5EA" BorderThickness="1"
+                Background="{DynamicResource C.Surface}" BorderBrush="{DynamicResource C.Border}" BorderThickness="1"
                 CornerRadius="14" Padding="14,10" Margin="20,4,20,0">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{Binding PendingApproval.Title}"
-                               FontSize="13" FontWeight="SemiBold" Foreground="#1D1D1F" />
+                               FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource C.Text}" />
                     <TextBlock Text="{Binding PendingApproval.Detail}"
-                               FontSize="11" Foreground="#86868B" TextWrapping="Wrap" />
+                               FontSize="11" Foreground="{DynamicResource C.TextDim}" TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                             VerticalAlignment="Center" Margin="12,0,0,0">
                     <Button Content="Always" Command="{Binding ApproveAlwaysCommand}"
-                            FontSize="12" Background="#F5F5F7" Foreground="#1D1D1F"
+                            FontSize="12" Background="{DynamicResource C.SurfaceAlt}" Foreground="{DynamicResource C.Text}"
                             CornerRadius="10" Padding="12,6" />
                     <Button Content="Allow" Command="{Binding ApproveOnceCommand}"
-                            FontSize="12" FontWeight="SemiBold" Background="#0071E3"
-                            Foreground="White" CornerRadius="10" Padding="12,6" />
+                            FontSize="12" FontWeight="SemiBold" Background="{DynamicResource C.Accent}"
+                            Foreground="{DynamicResource C.AccentText}" CornerRadius="10" Padding="12,6" />
                     <Button Content="Deny" Command="{Binding DenyApprovalCommand}"
-                            FontSize="12" FontWeight="SemiBold" Background="#FF3B30"
-                            Foreground="White" CornerRadius="10" Padding="12,6" />
+                            FontSize="12" FontWeight="SemiBold" Background="{DynamicResource C.Danger}"
+                            Foreground="#FFFFFF" CornerRadius="10" Padding="12,6" />
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ── Input row ───────────────────────────────────────────── -->
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="20,8,20,0">
-            <Border Background="#FFFFFF" CornerRadius="12" BorderBrush="#E0E0E3"
+            <Border Background="{DynamicResource C.Surface}" CornerRadius="12"
+                    BorderBrush="{DynamicResource C.BorderStrong}"
                     BorderThickness="1" Margin="0,0,10,0"
                     IsVisible="{Binding !HasPendingApproval}">
                 <TextBox Text="{Binding Input, Mode=TwoWay}"
@@ -149,31 +150,32 @@
                          KeyDown="OnInputKeyDown" />
             </Border>
             <Button Grid.Column="1" Content="Send" Command="{Binding SendCommand}"
-                    FontSize="13" FontWeight="SemiBold" Foreground="White"
-                    Background="#0071E3" CornerRadius="18" Padding="20,9"
+                    FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource C.AccentText}"
+                    Background="{DynamicResource C.Accent}" CornerRadius="18" Padding="20,9"
                     VerticalAlignment="Stretch" MinHeight="38"
                     IsVisible="{Binding !HasPendingApproval}" />
             <TextBlock Grid.ColumnSpan="2" Text="Answer above to continue."
-                       FontSize="12" Foreground="#86868B"
+                       FontSize="12" Foreground="{DynamicResource C.TextDim}"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding HasPendingApproval}" />
         </Grid>
 
         <!-- ── Footer ──────────────────────────────────────────────── -->
         <TextBlock Grid.Row="4" Text="Sandboxed · Policy-gated · Undoable"
-                   FontSize="10" Foreground="#A1A1A8"
+                   FontSize="10" Foreground="{DynamicResource C.TextFaint}"
                    HorizontalAlignment="Center" Margin="0,8,0,12" />
 
         <!-- ── Conversation drawer: history is a surface away ──────── -->
         <Border Grid.Row="1" Grid.RowSpan="4" IsVisible="{Binding DrawerOpen}"
-                Background="#FAFFFFFF" BorderBrush="#E0E0E3" BorderThickness="1,0,0,0"
+                Background="{DynamicResource C.DrawerBg}" BorderBrush="{DynamicResource C.BorderStrong}"
+                BorderThickness="1,0,0,0"
                 Width="380" HorizontalAlignment="Right" VerticalAlignment="Stretch">
             <Grid RowDefinitions="Auto,*,Auto" Margin="16,12,16,12">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="Conversation" FontSize="14" FontWeight="SemiBold"
-                               Foreground="#1D1D1F" VerticalAlignment="Center" />
+                               Foreground="{DynamicResource C.Title}" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Close" Command="{Binding ToggleDrawerCommand}"
-                            FontSize="12" Foreground="#0071E3" Background="Transparent"
+                            FontSize="12" Foreground="{DynamicResource C.Link}" Background="Transparent"
                             Padding="6,2" CornerRadius="8" />
                 </Grid>
                 <ScrollViewer Grid.Row="1" x:Name="DrawerScroll" Margin="0,10,0,0"

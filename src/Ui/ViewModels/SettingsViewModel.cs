@@ -22,13 +22,16 @@ public partial class SettingsViewModel : ObservableObject
     private string _provider = "echo";
 
     [ObservableProperty]
-    private string _geminiApiKey = "";
+    private string _apiKey = "";
 
     [ObservableProperty]
     private bool _memoryLogging = true;
 
     [ObservableProperty]
     private bool _screenCapture = true;
+
+    [ObservableProperty]
+    private string _appearance = "light";
 
     [ObservableProperty]
     private string _hotkey = "Ctrl+Alt+Space";
@@ -41,6 +44,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string _adbPath = "";
+
+    [ObservableProperty]
+    private string _providerCaption = "";
 
     public SettingsViewModel()
         : this(AppSettings.Load(), DefaultAdbResolver, DefaultPhoneFactory)
@@ -57,16 +63,38 @@ public partial class SettingsViewModel : ObservableObject
         _phoneFactory = phoneFactory ?? DefaultPhoneFactory;
 
         Provider = string.IsNullOrWhiteSpace(stored.ModelProvider) ? "echo" : stored.ModelProvider;
-        GeminiApiKey = stored.GeminiApiKey;
+        ApiKey = KeyFor(stored, Provider);
         MemoryLogging = stored.MemoryLogging;
         ScreenCapture = stored.ScreenCapture;
+        Appearance = stored.Appearance;
         Hotkey = stored.Hotkey;
         PhoneHost = stored.PhoneHost;
         PhonePort = stored.PhonePort.ToString();
         AdbPath = stored.AdbPath;
+        ProviderCaption = Caption();
     }
 
-    public string[] Providers { get; } = ["echo", "gemini"];
+    public string[] Providers { get; } = ["echo", "gemini", "openai", "claude"];
+
+    public string[] AppearanceChoices { get; } = ["light", "dark", "system"];
+
+    partial void OnProviderChanged(string value) => ProviderCaption = Caption();
+
+    private string Caption() => Provider switch
+    {
+        "gemini" => "Google Gemini — text and realtime voice (Gemini Live); screen reading included.",
+        "openai" => "OpenAI ChatGPT — text with images; realtime voice via the Realtime API.",
+        "claude" => "Anthropic Claude — text with images; voice rides on cloud speech, not native yet.",
+        _ => "Echo is a local test provider: repeats your text, no network, no voice.",
+    };
+
+    private static string KeyFor(AppSettings stored, string provider) => provider switch
+    {
+        "gemini" => stored.GeminiApiKey,
+        "openai" => stored.OpenAiApiKey,
+        "claude" => stored.AnthropicApiKey,
+        _ => "",
+    };
 
     private static string DefaultAdbResolver(string configuredPath)
         => AdbProbe.ResolveAdb(
@@ -89,11 +117,23 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public void Save()
     {
-        _stored.ModelProvider = string.Equals(Provider, "gemini", StringComparison.OrdinalIgnoreCase)
-            ? "gemini" : "echo";
-        _stored.GeminiApiKey = GeminiApiKey.Trim();
+        var provider = Provider.Trim().ToLowerInvariant() switch
+        {
+            "gemini" or "openai" or "claude" => Provider.Trim().ToLowerInvariant(),
+            _ => "echo",
+        };
+
+        _stored.ModelProvider = provider;
+        switch (provider)
+        {
+            case "gemini": _stored.GeminiApiKey = ApiKey.Trim(); break;
+            case "openai": _stored.OpenAiApiKey = ApiKey.Trim(); break;
+            case "claude": _stored.AnthropicApiKey = ApiKey.Trim(); break;
+        }
+
         _stored.MemoryLogging = MemoryLogging;
         _stored.ScreenCapture = ScreenCapture;
+        _stored.Appearance = Appearance.Trim().ToLowerInvariant();
         _stored.Hotkey = Hotkey.Trim();
         _stored.PhoneHost = PhoneHost.Trim();
         _stored.AdbPath = AdbPath.Trim();

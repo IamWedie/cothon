@@ -7,6 +7,8 @@ public sealed class AppSettings
 {
     public string ModelProvider { get; set; } = "echo";
     public string GeminiApiKey { get; set; } = "";
+    public string OpenAiApiKey { get; set; } = "";
+    public string AnthropicApiKey { get; set; } = "";
     public bool MemoryLogging { get; set; } = true;
     public string SandboxRoot { get; set; } = "sandbox";
     public bool CompactMode { get; set; }
@@ -16,6 +18,19 @@ public sealed class AppSettings
     public string AdbPath { get; set; } = "";
     /// <summary>Screen awareness: capture on each message (user-requested).</summary>
     public bool ScreenCapture { get; set; } = true;
+
+    /// <summary>light | dark | system (case-insensitive; anything else is light).</summary>
+    public string Appearance
+    {
+        get => _appearance;
+        set => _appearance = IsAppearance(value) ? value.ToLowerInvariant() : "light";
+    }
+    private string _appearance = "light";
+
+    public static readonly string[] AppearanceChoices = ["light", "dark", "system"];
+
+    private static bool IsAppearance(string? value)
+        => value is not null && AppearanceChoices.Contains(value.Trim().ToLowerInvariant());
 
     public static string Folder { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cothon");

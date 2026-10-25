@@ -31,6 +31,7 @@ public class AppSettingsTests
         Assert.Equal(5555, settings.PhonePort);
         Assert.Equal("", settings.AdbPath);
         Assert.True(settings.ScreenCapture);
+        Assert.Equal("light", settings.Appearance);
     }
 
     [Fact]
@@ -43,6 +44,7 @@ public class AppSettingsTests
             PhonePort = 5556,
             AdbPath = @"C:\platform-tools\adb.exe",
             ModelProvider = "gemini",
+            Appearance = "system",
         };
         settings.Save();
 
@@ -52,5 +54,12 @@ public class AppSettingsTests
         Assert.Equal(5556, loaded.PhonePort);
         Assert.Equal(@"C:\platform-tools\adb.exe", loaded.AdbPath);
         Assert.Equal("gemini", loaded.ModelProvider);
+        Assert.Equal("system", loaded.Appearance);
+    }
+
+    [Fact]
+    public void Unknown_appearance_falls_back_to_light()
+    {
+        Assert.Equal("light", new AppSettings { Appearance = "banana" }.Appearance);
     }
 }

@@ -34,6 +34,14 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public void Appearance_choices_cover_all_three_modes()
+    {
+        var vm = new SettingsViewModel(new AppSettings());
+
+        Assert.Equal(["light", "dark", "system"], vm.AppearanceChoices);
+    }
+
+    [Fact]
     public void Save_pushes_all_fields_into_store()
     {
         var stored = new AppSettings();
@@ -45,13 +53,53 @@ public sealed class SettingsViewModelTests
         vm.AdbPath = @"C:\platform-tools\adb.exe";
         vm.Hotkey = "F9";
         vm.Provider = "gemini";
+        vm.ApiKey = "g-key";
+        vm.Appearance = "dark";
         vm.SaveCommand.Execute(null);
 
         Assert.Equal("192.168.1.20", stored.PhoneHost);
         Assert.Equal(@"C:\platform-tools\adb.exe", stored.AdbPath);
         Assert.Equal("F9", stored.Hotkey);
         Assert.Equal("gemini", stored.ModelProvider);
+        Assert.Equal("g-key", stored.GeminiApiKey);
+        Assert.Equal("dark", stored.Appearance);
         Assert.Contains("Saved", vm.Status);
+    }
+
+    [Fact]
+    public void Key_isStored_per_provider()
+    {
+        var stored = new AppSettings();
+        var vm = new SettingsViewModel(
+            stored, adbResolver: _ => "", phoneFactory: (_, _, _) => Connector(true));
+
+        vm.Provider = "claude";
+        vm.ApiKey = "c-key";
+        vm.SaveCommand.Execute(null);
+
+        Assert.Equal("c-key", stored.AnthropicApiKey);
+        Assert.Equal("", stored.GeminiApiKey);
+
+        var vm2 = new SettingsViewModel(stored);
+        Assert.Equal("claude", vm2.Provider);
+        Assert.Equal("c-key", vm2.ApiKey); // the selected provider's key round-trips
+    }
+
+    [Fact]
+    public void Provider_captions_explain_capabilities_and_voice()
+    {
+        var vm = new SettingsViewModel(new AppSettings());
+
+        foreach (var provider in vm.Providers)
+        {
+            vm.Provider = provider;
+            Assert.False(string.IsNullOrWhiteSpace(vm.ProviderCaption), provider);
+        }
+
+        vm.Provider = "gemini";
+        Assert.Contains("voice", vm.ProviderCaption);
+        vm.Provider = "echo";
+        Assert.Contains("test", vm.ProviderCaption);
     }
 
     [Fact]
