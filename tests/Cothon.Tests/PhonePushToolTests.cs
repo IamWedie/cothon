@@ -1,8 +1,9 @@
 using Cothon.Core.Files;
 using Cothon.Core.Policy;
+using Cothon.Core.Phone;
+using Cothon.Core.Sessions;
 using Cothon.Core.Tools;
 using Cothon.Core.Undo;
-using Cothon.Core.Phone;
 using Xunit;
 
 public class PhonePushToolTests : IDisposable
@@ -16,10 +17,8 @@ public class PhonePushToolTests : IDisposable
         _sandbox = Path.Combine(Path.GetTempPath(), $"cothon-phone-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_sandbox);
         _adb = new StubAdb();
-        var tools = new PhoneTool(
-            new PhoneBridge(_adb, new PathPolicy(_sandbox)));
         var registry = new ToolRegistry();
-        registry.Register(tools);
+        registry.Register(new PhoneTool(_adb, new PathPolicy(_sandbox)));
         _broker = new ToolBroker(registry, new PolicyEngine(), new AutoApprovalGate(), new UndoLedger());
     }
 
@@ -29,7 +28,7 @@ public class PhonePushToolTests : IDisposable
     }
 
     [Fact]
-    public async Task Push_runs_adb_with_pinned_device_and_canonical_local_path()
+    public async Task Push_runs_adb_with_canonical_local_path()
     {
         var local = Path.Combine(_sandbox, "note.txt");
         await File.WriteAllTextAsync(local, "hi");
@@ -46,6 +45,22 @@ public class PhonePushToolTests : IDisposable
         Assert.IsType<string>(sent.Local);
         Assert.Equal(local, sent.Local);
         Assert.Equal("/sdcard/Download/note.txt", sent.Remote);
+    }
+
+    [Fact]
+    public async Task Push_defaults_remote_to_sdcard_download()
+    {
+        var local = Path.Combine(_sandbox, "note.txt");
+        await File.WriteAllTextAsync(local, "hi");
+        string? sentRemote = null;
+        _adb.OnPush = (_, r, _) => { sentRemote = r; return Task.FromResult(AdbOutcome.Ok("pushed")); };
+
+        await _broker.InvokeAsync("phone_push_file", new Dictionary<string, object?>
+        {
+            ["local"] = "note.txt",
+        });
+
+        Assert.Equal("/sdcard/Download/note.txt", sentRemote);
     }
 
     [Fact]
@@ -93,61 +108,25 @@ public class PhonePushToolTests : IDisposable
         Assert.Contains("boom", result.Outcome);
     }
 
-    private sealed class PhoneBridge(StubAdb adb, PathPolicy paths)
+    [Fact]
+    public void Definition_carries_phone_capability_and_high_risk()
     {
-        public async Task<ToolResult> PushAsync(string local, string remote, CancellationToken ct)
-        {
-            var verdict = paths.Validate(local);
-            if (!verdict.Allowed)
-                return ToolResult.Fail("path_denied", verdict.Reason!);
-            if (!File.Exists(verdict.Canonical))
-                return ToolResult.Fail("not_found", $"Local file not found: {verdict.Canonical}");
+        var tool = new PhoneTool(new StubAdb(), new PathPolicy(_sandbox));
 
-            var outcome = await adb.PushAsync(verdict.Canonical, remote, ct);
-            return outcome.IsFailed
-                ? ToolResult.Fail("adb_failed", $"adb error: {adb.ErrorMessage}")
-                : ToolResult.Succeed(new { local = verdict.Canonical, remote }, $"Pushed {verdict.Canonical} → {remote}");
-        }
-
-        public ToolDefinition PushTool() => new()
-        {
-            Name = "phone_push_file",
-            Description = "Copy a local PC file to the phone.",
-            Parameters =
-            [
-                new ToolParameter { Name = "local", Required = true },
-                new ToolParameter { Name = "remote", Description = "Phone path (default /sdcard/Download/)" },
-            ],
-            Risk = RiskLevel.High,
-            Capabilities = ["phone.push", "fs.read"],
-            Reversible = false,
-        };
-    }
-
-    private sealed class PhoneTool(PhoneBridge bridge) : ITool
-    {
-        public ToolDefinition Definition { get; } = bridge.PushTool();
-
-        public async Task<ToolResult> ExecuteAsync(IReadOnlyDictionary<string, object?> args, CancellationToken ct)
-        {
-            var local = args.TryGetValue("local", out var l) ? l as string ?? "" : "";
-            var remote = args.TryGetValue("remote", out var r) && r is string rs && rs.Length > 0
-                ? rs
-                : "/sdcard/Download/" + Path.GetFileName(local);
-            return await bridge.PushAsync(local, remote, ct);
-        }
+        Assert.Equal("phone_push_file", tool.Definition.Name);
+        Assert.Equal(RiskLevel.High, tool.Definition.Risk);
+        Assert.Contains("phone.push", tool.Definition.Capabilities);
     }
 
     private sealed class StubAdb : AdbClient
     {
-        public string ErrorMessage = "";
         public Func<string, string, CancellationToken, Task<AdbOutcome>>? OnPush;
 
         public StubAdb() : base(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "host") { }
 
-        public void SimulateFailure(string message) => ErrorMessage = message;
+        public void SimulateFailure(string message) => LastError = message;
 
-        public async Task<AdbOutcome> PushAsync(string local, string remote, CancellationToken ct)
-            => OnPush is null ? AdbOutcome.Ok("pushed") : await OnPush(local, remote, ct);
+        public override Task<AdbOutcome> PushAsync(string local, string remote, CancellationToken ct = default)
+            => OnPush is null ? Task.FromResult(AdbOutcome.Ok("pushed")) : OnPush(local, remote, ct);
     }
 }

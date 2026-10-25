@@ -176,6 +176,14 @@ public partial class MainWindowViewModel : ObservableObject
             memory = new Core.Memory.MemoryStore(stored.MemoryLogging);
             registry.Register(new Core.Memory.MemoryTool(memory));
         }
+        var adb = Core.Phone.AdbProbe.ResolveAdb(
+            stored.AdbPath,
+            Environment.GetEnvironmentVariable("PATH") ?? "",
+            Core.Phone.AdbProbe.DefaultCommonDirs);
+        if (adb.Length > 0)
+            registry.Register(new Core.Phone.PhoneTool(
+                new Core.Phone.AdbClient(adb, stored.PhoneHost, stored.PhonePort),
+                new Core.Files.PathPolicy(root)));
         var provider = ChooseProvider(stored);
         return new Core.Sessions.AgentLoop(
             provider,

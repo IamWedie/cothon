@@ -52,7 +52,14 @@ public class AdbClient(string adbPath, string host, int port = 5555, string? ser
 
     public string DeviceId => _deviceId;
 
-    public string LastError { get; private set; } = "";
+    public string LastError { get; protected set; } = "";
+
+    /// <summary>Copies a PC file to the phone (adb push, 30 s budget).</summary>
+    public virtual async Task<AdbOutcome> PushAsync(string local, string remote, CancellationToken ct = default)
+    {
+        var outcome = await RunAsync(["push", local, remote], timeoutSeconds: 30, ct: ct).ConfigureAwait(false);
+        return outcome;
+    }
 
     /// <summary>Runs adb and returns stdout; sets LastError on any failure.</summary>
     public async Task<AdbOutcome> RunAsync(string[] args, int timeoutSeconds = 15, bool targetDevice = true, CancellationToken ct = default)
