@@ -32,6 +32,7 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
                 role = m.Author == Author.Assistant ? "assistant" : "user",
                 content = TextNote(m),
             })
+            .Concat(StepMessages(request.ToolSteps))
             .Concat([new
             {
                 role = "user",
@@ -98,7 +99,10 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
                 .Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "tool_use")
                 .Select(block => new ModelToolCall(
                     block.GetProperty("name").GetString() ?? "",
-                    ToolArgs.From(block.GetProperty("input"))))
+                    ToolArgs.From(block.GetProperty("input")))
+                {
+                    Id = block.TryGetProperty("id", out var id) ? id.GetString() ?? "" : "",
+                })
                 .ToList();
         }
         catch (KeyNotFoundException)
@@ -128,5 +132,39 @@ public sealed class AnthropicTextProvider(string apiKey, string model = "claude-
             }
         }
         return [.. content];
+    }
+
+    /// <summary>Assistant tool_use turn + one tool_result block per executed call.</summary>
+    private static IEnumerable<object> StepMessages(IReadOnlyList<ModelTurnStep>? steps)
+    {
+        if (steps is null)
+            yield break;
+
+        foreach (var step in steps)
+        {
+            var content = new List<object>();
+            if (step.AssistantText.Length > 0)
+                content.Add(new { type = "text", text = step.AssistantText });
+            foreach (var executed in step.Calls)
+            {
+                content.Add(new
+                {
+                    type = "tool_use",
+                    id = executed.Call.Id,
+                    name = executed.Call.Name,
+                    input = new Dictionary<string, object?>(executed.Call.Args),
+                });
+            }
+            yield return new { role = "assistant", content = content.ToArray() };
+
+            var results = step.Calls.Select(executed => (object)new
+            {
+                type = "tool_result",
+                tool_use_id = executed.Call.Id,
+                content = executed.Ok ? executed.Outcome : $"Error: {executed.Outcome}",
+                is_error = !executed.Ok,
+            });
+            yield return new { role = "user", content = results.ToArray() };
+        }
     }
 }

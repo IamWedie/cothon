@@ -29,6 +29,7 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
 
         var messages = request.History
             .Select(m => TextMessage(m.Author == Author.Assistant ? "assistant" : "user", [TextPart(m.Text)]))
+            .Concat(StepMessages(request.ToolSteps))
             .Concat([TextMessage("user", CurrentParts(request.UserText, request.Screens))])
             .Prepend(TextMessage("system", [TextPart(request.SystemPrompt)]));
 
@@ -90,7 +91,10 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
                     var function = entry.GetProperty("function");
                     var name = function.GetProperty("name").GetString() ?? "";
                     var args = JsonDocument.Parse(function.GetProperty("arguments").GetString() ?? "{}");
-                    calls.Add(new ModelToolCall(name, ToolArgs.From(args.RootElement)));
+                    calls.Add(new ModelToolCall(name, ToolArgs.From(args.RootElement))
+                    {
+                        Id = entry.TryGetProperty("id", out var id) ? id.GetString() ?? "" : "",
+                    });
                 }
             }
             return calls;
@@ -125,5 +129,43 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
             }
         }
         return [.. parts];
+    }
+
+    /// <summary>Assistant tool_calls turn + one role:tool message per executed call.</summary>
+    private static IEnumerable<object> StepMessages(IReadOnlyList<ModelTurnStep>? steps)
+    {
+        if (steps is null)
+            yield break;
+
+        foreach (var step in steps)
+        {
+            var toolCalls = step.Calls.Select(executed => new
+            {
+                id = executed.Call.Id,
+                type = "function",
+                function = new
+                {
+                    name = executed.Call.Name,
+                    arguments = JsonSerializer.Serialize(executed.Call.Args),
+                },
+            }).ToArray();
+
+            yield return new
+            {
+                role = "assistant",
+                content = step.AssistantText.Length > 0 ? new object[] { TextPart(step.AssistantText) } : Array.Empty<object>(),
+                tool_calls = toolCalls,
+            };
+
+            foreach (var executed in step.Calls)
+            {
+                yield return new
+                {
+                    role = "tool",
+                    tool_call_id = executed.Call.Id,
+                    content = new object[] { TextPart(executed.Ok ? executed.Outcome : $"Error: {executed.Outcome}") },
+                };
+            }
+        }
     }
 }

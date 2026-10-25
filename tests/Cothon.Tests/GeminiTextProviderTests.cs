@@ -73,6 +73,32 @@ public class GeminiTextProviderTests
     }
 
     [Fact]
+    public async Task Tool_results_come_back_as_function_responses()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHandler(req => { captured = req; return OkGemini("done"); });
+        var provider = new GeminiTextProvider("k", transport: handler);
+        var request = Request() with
+        {
+            ToolSteps =
+            [
+                new ModelTurnStep("", [new ModelCallExecuted(
+                    new ModelToolCall("memory_save", new Dictionary<string, object?> { ["key"] = "coffee" }) { Id = "" },
+                    Ok: true,
+                    Outcome: "Remembered coffee.")]),
+            ],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await new StreamReader(captured!.Content!.ReadAsStream()).ReadToEndAsync();
+        Assert.Contains("functionResponse", body);
+        Assert.Contains("memory_save", body);
+        Assert.Contains("Remembered coffee.", body);
+        Assert.Contains("\"model\"", body); // the calling turn is echoed as model content
+    }
+
+    [Fact]
     public async Task Tools_are_declared_as_functions_in_the_payload()
     {
         HttpRequestMessage? captured = null;

@@ -33,6 +33,7 @@ public sealed class GeminiTextProvider(string apiKey, string model = "gemini-2.5
                 role = m.Author == Author.Assistant ? "model" : "user",
                 parts = TextOnly(m),
             })
+            .Concat(TurnSteps(request.ToolSteps))
             .Concat([CurrentUserTurn(request.UserText, request.Screens)]);
         var system = new { parts = new[] { new { text = request.SystemPrompt } } };
 
@@ -89,6 +90,48 @@ public sealed class GeminiTextProvider(string apiKey, string model = "gemini-2.5
 
         return new { role = "user", parts = parts.ToArray() };
     }
+
+    /// <summary>Each round replays as a model call turn followed by its function responses.</summary>
+    private static IEnumerable<object> TurnSteps(IReadOnlyList<ModelTurnStep>? steps)
+    {
+        if (steps is null)
+            yield break;
+
+        foreach (var step in steps)
+        {
+            var modelParts = new List<object>();
+            if (step.AssistantText.Length > 0)
+                modelParts.Add(new { text = step.AssistantText });
+            foreach (var executed in step.Calls)
+                modelParts.Add(new
+                {
+                    functionCall = new
+                    {
+                        name = executed.Call.Name,
+                        args = ArgsToPlain(executed.Call.Args),
+                    },
+                });
+            if (modelParts.Count > 0)
+                yield return new { role = "model", parts = modelParts.ToArray() };
+
+            var responses = step.Calls.Select(executed => (object)new
+            {
+                functionResponse = new
+                {
+                    name = executed.Call.Name,
+                    response = new
+                    {
+                        result = executed.Ok ? executed.Outcome : $"Error: {executed.Outcome}",
+                    },
+                },
+            });
+            yield return new { role = "user", parts = responses.ToArray() };
+        }
+    }
+
+    /// <summary>Args were already flattened to simple types when parsed.</summary>
+    private static Dictionary<string, object?> ArgsToPlain(IReadOnlyDictionary<string, object?> args) =>
+        new(args);
 
     /// <summary>Extracts first candidate → first part text defensively.</summary>
     internal static string Normalise(JsonElement payload)

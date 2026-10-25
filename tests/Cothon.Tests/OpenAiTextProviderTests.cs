@@ -127,7 +127,7 @@ public class OpenAiTextProviderTests
 {
   "choices": [ { "message": {
     "content": null,
-    "tool_calls": [ { "type": "function", "function": {
+    "tool_calls": [ { "id": "call_1", "type": "function", "function": {
       "name": "memory_save",
       "arguments": "{\"key\":\"coffee\",\"value\":\"oat\",\"category\":\"personal\"}"
     } } ]
@@ -144,9 +144,42 @@ public class OpenAiTextProviderTests
 
         var call = Assert.Single(result.ToolCalls);
         Assert.Equal("memory_save", call.Name);
+        Assert.Equal("call_1", call.Id);
         Assert.Equal("coffee", call.Args["key"]);
         Assert.Equal("oat", call.Args["value"]);
         Assert.Equal("personal", call.Args["category"]);
+    }
+
+    [Fact]
+    public async Task Tool_results_come_back_as_role_tool_messages()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = stub(req => { captured = req; return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"got it\"}}]}", System.Text.Encoding.UTF8, "application/json"),
+        }; });
+        var provider = new OpenAiTextProvider("k", transport: handler);
+        var request = new ModelRequest("S", [], "done?")
+        {
+            ToolSteps =
+            [
+                new ModelTurnStep(
+                    AssistantText: "saving that",
+                    Calls: [new ModelCallExecuted(
+                        new ModelToolCall("memory_save", new Dictionary<string, object?> { ["key"] = "coffee" }) { Id = "call_1" },
+                        Ok: true,
+                        Outcome: "Remembered coffee.")]),
+            ],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await BodyOf(captured);
+        Assert.Contains("\"role\":\"assistant\"", body.Replace(" ", ""));
+        Assert.Contains("\"tool_calls\"", body);
+        Assert.Contains("\"role\":\"tool\"", body);
+        Assert.Contains("\"tool_call_id\":\"call_1\"", body);
+        Assert.Contains("Remembered coffee.", body);
     }
 
     private static HttpMessageHandler stub(Func<HttpRequestMessage, HttpResponseMessage> reply) =>

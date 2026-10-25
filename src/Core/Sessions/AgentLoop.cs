@@ -5,13 +5,16 @@ using Cothon.Core.Tools;
 namespace Cothon.Core.Sessions;
 
 /// <summary>
-/// One user turn: ask the model, run any tool calls through the broker,
-/// and return every produced message in order. Tool failures become Tool
-/// messages with Ok=false — never a fake "done". Durable user memory,
-/// when enabled, is injected into every system prompt.
+/// One user turn, real agentic style: ask the model, run its tool calls
+/// through the broker, POST the outcomes back and ask again — until the
+/// model answers in text (or the round cap forces a text-only reply).
+/// Tool failures become Tool messages with Ok=false — never a fake "done".
 /// </summary>
 public sealed class AgentLoop(IModelProvider provider, ToolBroker broker, MemoryStore? memory = null)
 {
+    /// <summary>Tool rounds per turn before a text-only final answer is forced.</summary>
+    public const int MaxToolRounds = 4;
+
     public async Task<IReadOnlyList<ChatMessage>> RunAsync(
         IReadOnlyList<ChatMessage> history, string userText,
         CancellationToken ct = default)
@@ -24,23 +27,44 @@ public sealed class AgentLoop(IModelProvider provider, ToolBroker broker, Memory
         var user = new ChatMessage(Guid.NewGuid().ToString("N"), Author.User, userText, DateTimeOffset.UtcNow);
         var outgoing = new List<ChatMessage> { user };
 
-        var reply = await provider.CompleteAsync(
-            new ModelRequest(MemoryPrompt(), history, userText)
-            {
-                Screens = screen is null ? [] : [screen],
-                Tools = broker.Specs,
-            }, ct).ConfigureAwait(false);
+        var screens = screen is null ? [] : (IReadOnlyList<ScreenFrame>)[screen];
+        var steps = new List<ModelTurnStep>();
 
-        foreach (var call in reply.ToolCalls)
+        for (var round = 0; round <= MaxToolRounds; round++)
         {
-            var result = await broker.InvokeAsync(call.Name, call.Args, ct).ConfigureAwait(false);
-            outgoing.Add(new ChatMessage(
-                Guid.NewGuid().ToString("N"), Author.Tool,
-                string.IsNullOrWhiteSpace(result.Outcome) ? (result.Ok ? "(no text)" : result.Error!.Message) : result.Outcome,
-                DateTimeOffset.UtcNow, call.Name, result.Ok));
+            var restrictTools = round == MaxToolRounds;
+            var reply = await provider.CompleteAsync(
+                new ModelRequest(MemoryPrompt(), history, userText)
+                {
+                    Screens = screens,
+                    Tools = restrictTools ? [] : broker.Specs,
+                    ToolSteps = steps,
+                }, ct).ConfigureAwait(false);
+
+            if (reply.Text.Length > 0)
+                outgoing.Add(new ChatMessage(Guid.NewGuid().ToString("N"), Author.Assistant, reply.Text, DateTimeOffset.UtcNow));
+
+            if (reply.ToolCalls.Count == 0)
+                return outgoing;
+
+            if (restrictTools)
+                return outgoing; // cap reached; the text answer above is final
+
+            var executed = new List<ModelCallExecuted>();
+            foreach (var call in reply.ToolCalls)
+            {
+                var result = await broker.InvokeAsync(call.Name, call.Args, ct).ConfigureAwait(false);
+                var text = string.IsNullOrWhiteSpace(result.Outcome)
+                    ? (result.Ok ? "(no text)" : result.Error!.Message)
+                    : result.Outcome;
+                outgoing.Add(new ChatMessage(
+                    Guid.NewGuid().ToString("N"), Author.Tool, text, DateTimeOffset.UtcNow, call.Name, result.Ok));
+                executed.Add(new ModelCallExecuted(call, result.Ok, text));
+            }
+
+            steps.Add(new ModelTurnStep(reply.Text.Length > 0 ? reply.Text : "", executed));
         }
 
-        outgoing.Add(new ChatMessage(Guid.NewGuid().ToString("N"), Author.Assistant, reply.Text, DateTimeOffset.UtcNow));
         return outgoing;
     }
 

@@ -153,9 +153,38 @@ public class AnthropicTextProviderTests
 
         var call = Assert.Single(reply.ToolCalls);
         Assert.Equal("memory_save", call.Name);
+        Assert.Equal("tu_1", call.Id);
         Assert.Equal("coffee", call.Args["key"]);
         Assert.Equal("oat", call.Args["value"]);
         Assert.Equal("personal", call.Args["category"]);
+    }
+
+    [Fact]
+    public async Task Tool_results_come_back_as_tool_result_blocks()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHandler(req => { captured = req; return OkJson("{\"content\":[{\"type\":\"text\",\"text\":\"got it\"}]}"); });
+        var provider = new AnthropicTextProvider("k", transport: handler);
+        var request = new ModelRequest("S", [], "done?")
+        {
+            ToolSteps =
+            [
+                new ModelTurnStep(
+                    AssistantText: "saving that",
+                    Calls: [new ModelCallExecuted(
+                        new ModelToolCall("memory_save", new Dictionary<string, object?> { ["key"] = "coffee" }) { Id = "tu_9" },
+                        Ok: true,
+                        Outcome: "Remembered coffee.")]),
+            ],
+        };
+
+        await provider.CompleteAsync(request);
+
+        var body = await new StreamReader(captured!.Content!.ReadAsStream()).ReadToEndAsync();
+        Assert.Contains("\"type\":\"tool_use\"", body);
+        Assert.Contains("\"type\":\"tool_result\"", body);
+        Assert.Contains("\"tool_use_id\":\"tu_9\"", body);
+        Assert.Contains("Remembered coffee.", body);
     }
 }
 
