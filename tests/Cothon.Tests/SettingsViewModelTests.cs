@@ -182,4 +182,74 @@ public sealed class SettingsViewModelTests
         await badPort.TestPhone();
         Assert.Contains("Port must be", badPort.Status);
     }
+
+    private sealed class FakeQr : Avalonia.Media.IImage
+    {
+        public Avalonia.Size Size => new(8, 8);
+        public void Draw(Avalonia.Media.DrawingContext context, Avalonia.Rect sourceRect, Avalonia.Rect destinationRect) { }
+    }
+
+    [Fact]
+    public async Task Qr_pairing_wins_and_persists_the_phone_endpoint()
+    {
+        var stored = new AppSettings { PhoneHost = "192.168.1.20", PhonePort = 5556 };
+        var vm = new SettingsViewModel(
+            stored,
+            adbResolver: _ => @"C:\adb.exe",
+            phoneFactory: (_, _, _) => Connector(true))
+        {
+            PairWindowOpener = _ => () => { },
+            PairAsync = secret => Task.FromResult(
+                new PhonePairOutcome(true, "Paired and connected.", "192.168.1.127", 43475)),
+            QrRender = _ => new FakeQr(),
+        };
+
+        await vm.PairWithQrAsync();
+
+        Assert.NotNull(vm.PairQr);
+        Assert.Contains("Paired. Phone address held", vm.PairStatus);
+        Assert.Contains("192.168.1.127", vm.PairStatus);
+        Assert.Equal("192.168.1.127", vm.PhoneHost);
+        Assert.Equal("43475", vm.PhonePort);
+        Assert.Equal("192.168.1.127", stored.PhoneHost);
+        Assert.Equal(43475, stored.PhonePort);
+        Assert.False(vm.PairRunning);
+    }
+
+    [Fact]
+    public async Task Qr_pairing_refusal_is_spoken_and_storage_stays_put()
+    {
+        var stored = new AppSettings { PhoneHost = "192.168.1.20", PhonePort = 5556 };
+        var vm = new SettingsViewModel(
+            stored,
+            adbResolver: _ => @"C:\adb.exe",
+            phoneFactory: (_, _, _) => Connector(true))
+        {
+            PairWindowOpener = _ => () => { },
+            PairAsync = secret => Task.FromResult(
+                new PhonePairOutcome(false, "Pairing was refused: protocol failed: 4099")),
+            QrRender = _ => null,
+        };
+
+        await vm.PairWithQrAsync();
+
+        Assert.Contains("4099", vm.PairStatus);
+        Assert.Equal("192.168.1.20", stored.PhoneHost);
+        Assert.Equal(5556, stored.PhonePort);
+    }
+
+    [Fact]
+    public async Task Qr_pairing_never_when_adb_missing()
+    {
+        var vm = new SettingsViewModel(new AppSettings(), adbResolver: _ => "")
+        {
+            PairWindowOpener = _ => () => { },
+            PairAsync = secret => throw new InvalidOperationException("must not pair without adb"),
+        };
+
+        await vm.PairWithQrAsync();
+
+        Assert.Null(vm.PairQr);
+        Assert.Contains("adb", vm.Status);
+    }
 }

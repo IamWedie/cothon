@@ -20,6 +20,15 @@ public partial class SettingsViewModel : ObservableObject
     private string _status = "";
 
     [ObservableProperty]
+    private Avalonia.Media.IImage? _pairQr;
+
+    [ObservableProperty]
+    private string _pairStatus = "";
+
+    [ObservableProperty]
+    private bool _pairRunning;
+
+    [ObservableProperty]
     private string _provider = "echo";
 
     [ObservableProperty]
@@ -113,6 +122,14 @@ public partial class SettingsViewModel : ObservableObject
     private static IDeviceConnector DefaultPhoneFactory(string adbPath, string host, int port)
         => new AdbClient(adbPath, host, port);
 
+    /// <summary>Opens the QR dialog; the window decides its owner. Tests keep this null.</summary>
+    internal Func<SettingsViewModel, Action>? PairWindowOpener { get; set; } = PairWindow.Open;
+
+    internal Func<PhonePairingSecret, Task<PhonePairOutcome>>? PairAsync { get; set; }
+
+    /// <summary>QR renderer seam: production uses Avalonia bitmaps, tests use a stub.</summary>
+    internal Func<string, Avalonia.Media.IImage?>? QrRender { get; set; } = payload => QrImage.Render(payload);
+
     [RelayCommand]
     public void ProbeAdb()
     {
@@ -181,4 +198,64 @@ public partial class SettingsViewModel : ObservableObject
             ? $"Connected to {host}:{port}."
             : $"Could not connect to {host}:{port}: {connector.LastError}";
     }
+
+    /// <summary>
+    /// QR pairing: render the one-time secret, let the phone scan it, poll
+    /// mDNS for its pairing service, seal the pairing and hold the live
+    /// endpoint for next launch. Nothing silent: every step says where we are.
+    /// </summary>
+    [RelayCommand]
+    public async Task PairWithQrAsync()
+    {
+        var adbPath = _adbResolver(AdbPath.Trim());
+        if (adbPath.Length == 0)
+        {
+            Status = $"adb is not set — install platform-tools first. ({AdbProbe.MissingMessage()})";
+            return;
+        }
+
+        if (PairAsync is null)
+        {
+            var adb = new AdbClient(adbPath, HostIfAny(), PortIfAny());
+            PairAsync = secret => PhoneQrPairer.Production(adb).PairByQrAsync(secret, CancellationToken.None);
+        }
+
+        var generated = PhonePairingSecret.Generate();
+        PairQr = QrRender?.Invoke(generated.Payload);
+        PairRunning = true;
+        PairStatus = "Show this QR to your phone: Settings > Developer options > Wireless debugging > “Pair device with QR code”. Keep both on the same Wi-Fi.";
+        PairWindowOpener?.Invoke(this);
+
+        PhonePairOutcome outcome;
+        try
+        {
+            outcome = await PairAsync(generated);
+        }
+        catch (Exception ex)
+        {
+            outcome = new PhonePairOutcome(false, ex.Message);
+        }
+        finally
+        {
+            PairRunning = false;
+        }
+
+        PairStatus = outcome.Paired
+            ? outcome.ConnectHost.Length > 0
+                ? $"Paired. Phone address held for next launch: {outcome.ConnectHost}:{outcome.ConnectPort}"
+                : outcome.Note
+            : outcome.Note;
+
+        if (outcome.Paired && outcome.ConnectHost.Length > 0)
+        {
+            PhoneHost = outcome.ConnectHost;
+            PhonePort = outcome.ConnectPort.ToString();
+            _stored.PhoneHost = outcome.ConnectHost;
+            _stored.PhonePort = outcome.ConnectPort;
+            _stored.Save();
+        }
+    }
+
+    private string HostIfAny() => PhoneHost.Trim();
+    private int PortIfAny() => int.TryParse(PhonePort.Trim(), out var port) ? port : 5555;
 }
