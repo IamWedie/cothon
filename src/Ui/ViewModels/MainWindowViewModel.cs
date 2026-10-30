@@ -188,7 +188,17 @@ public partial class MainWindowViewModel : ObservableObject
             Core.Phone.AdbProbe.DefaultCommonDirs);
         if (adb.Length > 0)
             registry.Register(new Core.Phone.PhoneTool(
-                new Core.Phone.AdbClient(adb, stored.PhoneHost, stored.PhonePort),
+                Core.Phone.HealingPhone.For(
+                    new Core.Phone.AdbClient(adb, stored.PhoneHost, stored.PhonePort),
+                    adb,
+                    onHealed: (host, port) =>
+                    {
+                        var fresh = Core.Settings.AppSettings.Load();
+                        fresh.PhoneHost = host;
+                        fresh.PhonePort = port;
+                        fresh.Save();
+                        BootstrapNotes.Add($"Phone endpoint healed to {host}:{port} and saved for next launch.");
+                    }),
                 new Core.Files.PathPolicy(root)));
         if (stored.McpServers.Count > 0)
         {

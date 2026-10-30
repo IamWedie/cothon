@@ -46,11 +46,15 @@ public static class AdbTransport
 /// Shell pipelines are exempt from exit-code checks because grep/find exit
 /// nonzero when they simply find nothing.
 /// </summary>
-public class AdbClient(string adbPath, string host, int port = 5555, string? serial = null) : IDeviceConnector
+public class AdbClient(string adbPath, string host, int port = 5555, string? serial = null) : IDeviceConnector, IPhonePusher
 {
     private readonly string _deviceId = string.IsNullOrWhiteSpace(host) ? (serial ?? "") : $"{host}:{port}";
 
     public string DeviceId => _deviceId;
+
+    public string Host => host;
+
+    public int Port => port;
 
     public string LastError { get; protected set; } = "";
 
@@ -136,7 +140,7 @@ public class AdbClient(string adbPath, string host, int port = 5555, string? ser
     }
 
     /// <summary>Connects to the configured transport and verifies it answers.</summary>
-    public async Task<bool> ConnectAsync(CancellationToken ct = default)
+    public virtual async Task<bool> ConnectAsync(CancellationToken ct = default)
     {
         var devices = await RunAsync(["devices"], targetDevice: false, ct: ct).ConfigureAwait(false);
         if (devices.IsFailed) return false;

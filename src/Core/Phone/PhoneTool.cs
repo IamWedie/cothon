@@ -8,7 +8,7 @@ namespace Cothon.Core.Phone;
 /// origin: absolute paths and escapes are refused before adb ever runs,
 /// and adb failures surface with their stderr — never a fake success.
 /// </summary>
-public sealed class PhoneTool(AdbClient adb, PathPolicy paths) : ITool
+public sealed class PhoneTool(IPhonePusher adb, PathPolicy paths) : ITool
 {
     public ToolDefinition Definition { get; } = new()
     {

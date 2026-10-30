@@ -13,6 +13,31 @@ public static class MdnsPairFinder
     public static (string Host, int Port)? FindConnectOnHost(string mdnsOutput, string host)
         => FindService(mdnsOutput, "_adb-tls-connect._tcp", line => line.Contains(host, StringComparison.Ordinal));
 
+    /// <summary>
+    /// Repairs a stale endpoint: trust the host we remember, otherwise accept
+    /// a single connect service as our phone, and refuse to guess between
+    /// several strangers.
+    /// </summary>
+    public static (string Host, int Port)? ChooseConnectEndpoint(string mdnsOutput, string preferredHost)
+    {
+        var onHost = FindConnectOnHost(mdnsOutput, preferredHost);
+        if (onHost is not null)
+            return onHost;
+
+        var strangers = new List<(string, int)>();
+        foreach (var line in mdnsOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!line.Contains("_adb-tls-connect._tcp", StringComparison.Ordinal))
+                continue;
+            var endpoint = line.Split('\t')[^1].Trim();
+            var colon = endpoint.LastIndexOf(':');
+            if (colon <= 0 || !int.TryParse(endpoint[(colon + 1)..], out var port))
+                continue;
+            strangers.Add((endpoint[..colon], port));
+        }
+        return strangers.Count == 1 ? strangers[0] : null;
+    }
+
     private static (string, int)? FindService(string mdnsOutput, string serviceType, Func<string, bool> match)
     {
         foreach (var line in mdnsOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
