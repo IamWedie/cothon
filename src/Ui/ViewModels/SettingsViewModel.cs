@@ -89,7 +89,7 @@ public partial class SettingsViewModel : ObservableObject
         ProviderCaption = Caption();
     }
 
-    public string[] Providers { get; } = ["echo", "gemini", "openai", "claude"];
+    public string[] Providers { get; } = ["echo", "gemini", "openai", "claude", "glm"];
 
     public string[] AppearanceChoices { get; } = ["light", "dark", "system"];
 
@@ -107,6 +107,7 @@ public partial class SettingsViewModel : ObservableObject
         "gemini" => "Google Gemini — text and realtime voice (Gemini Live); screen reading included.",
         "openai" => "OpenAI ChatGPT — text with images; realtime voice via the Realtime API.",
         "claude" => "Anthropic Claude — text with images; voice rides on cloud speech, not native yet.",
+        "glm" => "Z.ai GLM — glm-5.3-flash over the OpenAI-compatible endpoint: text, images, 1M context; speech stays Gemini-only.",
         _ => "Echo is a local test provider: repeats your text, no network, no voice.",
     };
 
@@ -115,6 +116,7 @@ public partial class SettingsViewModel : ObservableObject
         "gemini" => stored.GeminiApiKey,
         "openai" => stored.OpenAiApiKey,
         "claude" => stored.AnthropicApiKey,
+        "glm" => stored.GlmApiKey,
         _ => "",
     };
 
@@ -150,7 +152,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         var provider = Provider.Trim().ToLowerInvariant() switch
         {
-            "gemini" or "openai" or "claude" => Provider.Trim().ToLowerInvariant(),
+            "gemini" or "openai" or "claude" or "glm" => Provider.Trim().ToLowerInvariant(),
             _ => "echo",
         };
 
@@ -160,6 +162,7 @@ public partial class SettingsViewModel : ObservableObject
             case "gemini": _stored.GeminiApiKey = ApiKey.Trim(); break;
             case "openai": _stored.OpenAiApiKey = ApiKey.Trim(); break;
             case "claude": _stored.AnthropicApiKey = ApiKey.Trim(); break;
+            case "glm": _stored.GlmApiKey = ApiKey.Trim(); break;
         }
 
         _stored.MemoryLogging = MemoryLogging;

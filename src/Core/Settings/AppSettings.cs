@@ -15,11 +15,14 @@ public sealed class AppSettings
     public string OpenAiApiKey { get; set; } = "";
     [JsonIgnore]
     public string AnthropicApiKey { get; set; } = "";
+    [JsonIgnore]
+    public string GlmApiKey { get; set; } = "";
 
     /// <summary>Base64 DPAPI blob; empty string when the key is unset.</summary>
     public string GeminiKeyCipher { get; set; } = "";
     public string OpenAiKeyCipher { get; set; } = "";
     public string AnthropicKeyCipher { get; set; } = "";
+    public string GlmKeyCipher { get; set; } = "";
 
     /// <summary>Syncs plaintext keys into ciphers (runtime → disk view).</summary>
     private void ProtectKeys()
@@ -27,6 +30,7 @@ public sealed class AppSettings
         GeminiKeyCipher = GeminiApiKey.Length > 0 ? KeyVault.Protect(GeminiApiKey) : "";
         OpenAiKeyCipher = OpenAiApiKey.Length > 0 ? KeyVault.Protect(OpenAiApiKey) : "";
         AnthropicKeyCipher = AnthropicApiKey.Length > 0 ? KeyVault.Protect(AnthropicApiKey) : "";
+        GlmKeyCipher = GlmApiKey.Length > 0 ? KeyVault.Protect(GlmApiKey) : "";
     }
 
     /// <summary>Decrypts ciphers into runtime plaintext (disk view → runtime).</summary>
@@ -35,6 +39,7 @@ public sealed class AppSettings
         GeminiApiKey = KeyVault.Unprotect(GeminiKeyCipher);
         OpenAiApiKey = KeyVault.Unprotect(OpenAiKeyCipher);
         AnthropicApiKey = KeyVault.Unprotect(AnthropicKeyCipher);
+        GlmApiKey = KeyVault.Unprotect(GlmKeyCipher);
     }
 
     /// <summary>
@@ -48,6 +53,7 @@ public sealed class AppSettings
         migrated |= TrySeal(root, "GeminiApiKey", g => GeminiApiKey = g);
         migrated |= TrySeal(root, "OpenAiApiKey", k => OpenAiApiKey = k);
         migrated |= TrySeal(root, "AnthropicApiKey", c => AnthropicApiKey = c);
+        migrated |= TrySeal(root, "GlmApiKey", z => GlmApiKey = z);
         if (migrated)
         {
             ProtectKeys();

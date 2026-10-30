@@ -155,6 +155,33 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void Glm_key_round_trips_and_never_lands_on_disk_in_plaintext()
+    {
+        var settings = new AppSettings { GlmApiKey = "z-secret-key" };
+        settings.Save();
+
+        var onDisk = File.ReadAllText(Path.Combine(AppSettings.Folder, "settings.json"));
+        Assert.DoesNotContain("z-secret-key", onDisk);
+        Assert.Contains("GlmKeyCipher", onDisk);
+
+        var loaded = AppSettings.Load();
+        Assert.Equal("z-secret-key", loaded.GlmApiKey);
+    }
+
+    [Fact]
+    public void Glm_key_is_adopted_from_legacy_plaintext_files()
+    {
+        Directory.CreateDirectory(AppSettings.Folder);
+        File.WriteAllText(Path.Combine(AppSettings.Folder, "settings.json"),
+            """{ "ModelProvider": "glm", "GlmApiKey": "legacy-z-key" }""");
+
+        var loaded = AppSettings.Load();
+
+        Assert.Equal("legacy-z-key", loaded.GlmApiKey);
+        File.Delete(Path.Combine(AppSettings.Folder, "settings.json"));
+    }
+
+    [Fact]
     public void Corrupt_cipher_falls_back_to_empty()
     {
         var tampered = """{ "GeminiKeyCipher": "!!!not base64!!!" }""";

@@ -133,13 +133,14 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private static bool needsKey(string provider) =>
-        provider is "gemini" or "openai" or "claude";
+        provider is "gemini" or "openai" or "claude" or "glm";
 
     private static bool hasKey(Core.Settings.AppSettings stored, string provider) => provider switch
     {
         "gemini" => !string.IsNullOrWhiteSpace(stored.GeminiApiKey),
         "openai" => !string.IsNullOrWhiteSpace(stored.OpenAiApiKey),
         "claude" => !string.IsNullOrWhiteSpace(stored.AnthropicApiKey),
+        "glm" => !string.IsNullOrWhiteSpace(stored.GlmApiKey),
         _ => false,
     };
 
@@ -225,6 +226,7 @@ public partial class MainWindowViewModel : ObservableObject
             "gemini" => stored.GeminiApiKey,
             "openai" => stored.OpenAiApiKey,
             "claude" => stored.AnthropicApiKey,
+            "glm" => stored.GlmApiKey,
             _ => "",
         };
         return KeyedProvider(stored.ModelProvider, key);
@@ -236,6 +238,7 @@ public partial class MainWindowViewModel : ObservableObject
             ("gemini", false) => new Core.Providers.GeminiTextProvider(key),
             ("openai", false) => new Core.Providers.OpenAiTextProvider(key),
             ("claude", false) => new Core.Providers.AnthropicTextProvider(key),
+            ("glm", false) => new Core.Providers.GlmTextProvider(key),
             _ => new Core.Sessions.EchoModelProvider(),
         };
 

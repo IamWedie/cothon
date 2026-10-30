@@ -8,12 +8,18 @@ namespace Cothon.Core.Providers;
 /// <summary>
 /// OpenAI text generation over the Chat Completions endpoint. Screens ride
 /// as data-url images on the current user turn; the HTTP transport is
-/// injectable so tests run without the network.
+/// injectable so tests run without the network. Base URL and label are
+/// parameters, which lets the very same wire dialect serve Z.ai's GLM.
 /// </summary>
-public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-mini", HttpMessageHandler? transport = null) : IModelProvider
+public class OpenAiTextProvider(
+    string apiKey,
+    string model = "gpt-4o-mini",
+    HttpMessageHandler? transport = null,
+    string baseUrl = "https://api.openai.com/v1",
+    string label = "OpenAI") : IModelProvider
 {
-    public static string Endpoint(string model) =>
-        $"https://api.openai.com/v1/chat/completions";
+    private static string Endpoint(string baseUrl, string model) =>
+        $"{baseUrl.TrimEnd('/')}/chat/completions";
 
     private readonly HttpClient _http = transport is null ? new() : new(transport);
 
@@ -25,7 +31,7 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
     public async Task<ModelReply> CompleteAsync(ModelRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("OpenAI API key is not configured.");
+            throw new InvalidOperationException($"{label} API key is not configured.");
 
         var messages = request.History
             .Select(m => TextMessage(m.Author == Author.Assistant ? "assistant" : "user", [TextPart(m.Text)]))
@@ -46,7 +52,7 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
             }
             : new { model, messages };
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, Endpoint(model));
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, Endpoint(baseUrl, model));
         requestMessage.Headers.Authorization = new("Bearer", apiKey);
         requestMessage.Content = new StringContent(
             JsonSerializer.Serialize(body, PayloadOptions), System.Text.Encoding.UTF8, "application/json");
@@ -55,7 +61,7 @@ public sealed class OpenAiTextProvider(string apiKey, string model = "gpt-4o-min
         if (!response.IsSuccessStatusCode)
         {
             var errorText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            throw new HttpRequestException($"OpenAI request failed ({(int)response.StatusCode}): {errorText}");
+            throw new HttpRequestException($"{label} request failed ({(int)response.StatusCode}): {errorText}");
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct).ConfigureAwait(false);
