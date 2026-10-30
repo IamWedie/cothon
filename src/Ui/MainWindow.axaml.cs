@@ -11,7 +11,9 @@ public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _vm;
     private Win32HotkeyHost? _hotkeyHost;
+    private Win32HotkeyHost? _pillHotkeyHost;
     private PillWindow? _pill;
+    private bool _pillVisible = true;
 
     public MainWindow()
     {
@@ -30,13 +32,21 @@ public partial class MainWindow : Window
         settings.Show();
     }
 
-    /// <summary>Register the settings-chosen hotkey OS-wide; degrade gracefully if in use.</summary>
+    /// <summary>Register the settings-chosen hotkeys OS-wide; degrade gracefully if in use.</summary>
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (_hotkeyHost is not null)
             return;
 
         var stored = Core.Settings.AppSettings.Load();
+
+        // Always-on-top pill shares the same VM; both surfaces never disagree.
+        if (_pill is null)
+        {
+            _pill = new PillWindow(this, _vm);
+            _pill.Show();
+        }
+
         var chordText = string.IsNullOrWhiteSpace(stored.Hotkey) ? "Ctrl+Alt+Space" : stored.Hotkey;
 
         var host = new Win32HotkeyHost();
@@ -51,23 +61,59 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _vm.NoteSystem($"Mic hotkey failed: {ex.Message} — tap the orb to arm the mic.");
-            return;
         }
 
         if (host.Error.Length > 0)
             _vm.NoteSystem(host.Error);
-        // Always-on-top pill shares the same VM; both surfaces never disagree.
-        if (_pill is null)
+
+        RegisterPillHotkey(stored);
+    }
+
+    /// <summary>A second, independent chord: hide or reveal the floating pill on demand.</summary>
+    private void RegisterPillHotkey(Core.Settings.AppSettings stored)
+    {
+        var chordText = stored.PillHotkey.Trim();
+        if (chordText.Length == 0)
         {
-            _pill = new PillWindow(this, _vm);
-            _pill.Show();
+            _vm.NoteSystem("Pill hotkey is off — the floating orb stays visible.");
+            return;
         }
+
+        var pillHost = new Win32HotkeyHost();
+        _pillHotkeyHost = pillHost;
+        try
+        {
+            pillHost.Start(
+                HotkeyChord.Parse(chordText),
+                () => Dispatcher.UIThread.Post(TogglePill),
+                new AvaloniaDispatcherBridge());
+        }
+        catch (Exception ex)
+        {
+            _vm.NoteSystem($"Pill hotkey failed: {ex.Message}");
+        }
+
+        if (pillHost.Error.Length > 0)
+            _vm.NoteSystem(pillHost.Error);
+    }
+
+    private void TogglePill()
+    {
+        if (_pill is null)
+            return;
+        if (_pillVisible)
+            _pill.Hide();
+        else
+            _pill.Show();
+        _pillVisible = !_pillVisible;
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         _hotkeyHost?.Dispose();
         _hotkeyHost = null;
+        _pillHotkeyHost?.Dispose();
+        _pillHotkeyHost = null;
         _pill?.Close();
         _pill = null;
     }

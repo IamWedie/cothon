@@ -70,6 +70,8 @@ public sealed class AppSettings
     public string SandboxRoot { get; set; } = "sandbox";
     public bool CompactMode { get; set; }
     public string Hotkey { get; set; } = "Ctrl+Alt+Space";
+    /// <summary>Global show/hide chord for the floating pill; empty disables it.</summary>
+    public string PillHotkey { get; set; } = "Ctrl+Alt+P";
     public string PhoneHost { get; set; } = "";
     public int PhonePort { get; set; } = 5555;
     public string AdbPath { get; set; } = "";

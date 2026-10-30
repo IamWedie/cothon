@@ -132,6 +132,13 @@
                                  CornerRadius="10" Background="{DynamicResource C.SurfaceAlt}"
                                  BorderBrush="{DynamicResource C.Border}" />
                     </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Pill hotkey (show/hide the floating orb)" FontSize="12" Foreground="{DynamicResource C.Label}" />
+                        <TextBox Text="{Binding PillHotkey, Mode=TwoWay}"
+                                 PlaceholderText="Ctrl+Alt+P" MinHeight="40" FontSize="13"
+                                 CornerRadius="10" Background="{DynamicResource C.SurfaceAlt}"
+                                 BorderBrush="{DynamicResource C.Border}" />
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

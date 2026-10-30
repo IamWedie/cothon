@@ -28,9 +28,21 @@ public sealed class SettingsViewModelTests
 
         vm.PhoneHost = "192.168.1.20";
         vm.Hotkey = "F9";
+        vm.PillHotkey = "Ctrl+Shift+K";
 
         Assert.Equal("", stored.PhoneHost); // untouched before Save
         Assert.Equal("Ctrl+Alt+Space", stored.Hotkey);
+        Assert.Equal("Ctrl+Alt+P", stored.PillHotkey);
+    }
+
+    [Fact]
+    public void Pill_hotkey_loads_with_the_store()
+    {
+        var stored = new AppSettings { PillHotkey = "Ctrl+Shift+K" };
+        var vm = new SettingsViewModel(
+            stored, adbResolver: _ => "", phoneFactory: (_, _, _) => Connector(true));
+
+        Assert.Equal("Ctrl+Shift+K", vm.PillHotkey);
     }
 
     [Fact]
@@ -52,6 +64,7 @@ public sealed class SettingsViewModelTests
         vm.PhonePort = "5555";
         vm.AdbPath = @"C:\platform-tools\adb.exe";
         vm.Hotkey = "F9";
+        vm.PillHotkey = "Ctrl+Shift+K";
         vm.Provider = "gemini";
         vm.ApiKey = "g-key";
         vm.Appearance = "dark";
@@ -60,6 +73,7 @@ public sealed class SettingsViewModelTests
         Assert.Equal("192.168.1.20", stored.PhoneHost);
         Assert.Equal(@"C:\platform-tools\adb.exe", stored.AdbPath);
         Assert.Equal("F9", stored.Hotkey);
+        Assert.Equal("Ctrl+Shift+K", stored.PillHotkey);
         Assert.Equal("gemini", stored.ModelProvider);
         Assert.Equal("g-key", stored.GeminiApiKey);
         Assert.Equal("dark", stored.Appearance);

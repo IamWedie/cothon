@@ -47,6 +47,9 @@ public partial class SettingsViewModel : ObservableObject
     private string _hotkey = "Ctrl+Alt+Space";
 
     [ObservableProperty]
+    private string _pillHotkey = "Ctrl+Alt+P";
+
+    [ObservableProperty]
     private string _phoneHost = "";
 
     [ObservableProperty]
@@ -79,6 +82,7 @@ public partial class SettingsViewModel : ObservableObject
         ScreenCapture = stored.ScreenCapture;
         Appearance = stored.Appearance;
         Hotkey = stored.Hotkey;
+        PillHotkey = stored.PillHotkey;
         PhoneHost = stored.PhoneHost;
         PhonePort = stored.PhonePort.ToString();
         AdbPath = stored.AdbPath;
@@ -162,6 +166,7 @@ public partial class SettingsViewModel : ObservableObject
         _stored.ScreenCapture = ScreenCapture;
         _stored.Appearance = Appearance.Trim().ToLowerInvariant();
         _stored.Hotkey = Hotkey.Trim();
+        _stored.PillHotkey = PillHotkey.Trim();
         _stored.PhoneHost = PhoneHost.Trim();
         _stored.AdbPath = AdbPath.Trim();
         if (int.TryParse(PhonePort.Trim(), out var port) && port is > 0 and < 65536)

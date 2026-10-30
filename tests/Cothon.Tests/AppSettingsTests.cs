@@ -31,6 +31,7 @@ public class AppSettingsTests
         var settings = new AppSettings();
 
         Assert.Equal("Ctrl+Alt+Space", settings.Hotkey);
+        Assert.Equal("Ctrl+Alt+P", settings.PillHotkey);
         Assert.Equal("", settings.PhoneHost);
         Assert.Equal(5555, settings.PhonePort);
         Assert.Equal("", settings.AdbPath);
@@ -44,6 +45,7 @@ public class AppSettingsTests
         var settings = new AppSettings
         {
             Hotkey = "F9",
+            PillHotkey = "Ctrl+Shift+K",
             PhoneHost = "192.168.1.20",
             PhonePort = 5556,
             AdbPath = @"C:\platform-tools\adb.exe",
@@ -54,6 +56,7 @@ public class AppSettingsTests
 
         var loaded = AppSettings.Load();
         Assert.Equal("F9", loaded.Hotkey);
+        Assert.Equal("Ctrl+Shift+K", loaded.PillHotkey);
         Assert.Equal("192.168.1.20", loaded.PhoneHost);
         Assert.Equal(5556, loaded.PhonePort);
         Assert.Equal(@"C:\platform-tools\adb.exe", loaded.AdbPath);
