@@ -16,6 +16,8 @@ public sealed class Win32HotkeyHost : IDisposable
 
     private Thread? _thread;
     private uint _threadId;
+    /// <summary>Per-instance class name: two hosts (mic + pill) must not fight over one registration.</summary>
+    private readonly string _className = $"CothonHotkeyWindow-{Guid.NewGuid():N}";
     private readonly ManualResetEventSlim _ready = new(false);
     private readonly object _gate = new();
 
@@ -93,9 +95,9 @@ public sealed class Win32HotkeyHost : IDisposable
     private static IntPtr DefWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         => DefWindowProcW(hwnd, msg, wParam, lParam);
 
-    private static IntPtr CreateMessageWindow()
+    private IntPtr CreateMessageWindow()
     {
-        const string name = "CothonHotkeyWindow";
+        var name = _className;
         var handle = GetModuleHandleW(null);
         var cls = new WndClassEx
         {
