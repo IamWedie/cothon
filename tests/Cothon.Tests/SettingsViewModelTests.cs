@@ -190,6 +190,26 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task Pairing_actually_opens_the_dialog_for_the_user()
+    {
+        var opened = 0;
+        var vm = new SettingsViewModel(
+            new AppSettings(),
+            adbResolver: _ => @"C:\adb.exe",
+            phoneFactory: (_, _, _) => Connector(true))
+        {
+            PairWindowOpener = () => opened++,
+            PairAsync = secret => Task.FromResult(
+                new PhonePairOutcome(false, "pause here")),
+            QrRender = _ => new FakeQr(),
+        };
+
+        await vm.PairWithQrAsync();
+
+        Assert.Equal(1, opened);
+    }
+
+    [Fact]
     public async Task Qr_pairing_wins_and_persists_the_phone_endpoint()
     {
         var stored = new AppSettings { PhoneHost = "192.168.1.20", PhonePort = 5556 };
@@ -198,7 +218,7 @@ public sealed class SettingsViewModelTests
             adbResolver: _ => @"C:\adb.exe",
             phoneFactory: (_, _, _) => Connector(true))
         {
-            PairWindowOpener = _ => () => { },
+            PairWindowOpener = () => { },
             PairAsync = secret => Task.FromResult(
                 new PhonePairOutcome(true, "Paired and connected.", "192.168.1.127", 43475)),
             QrRender = _ => new FakeQr(),
@@ -225,7 +245,7 @@ public sealed class SettingsViewModelTests
             adbResolver: _ => @"C:\adb.exe",
             phoneFactory: (_, _, _) => Connector(true))
         {
-            PairWindowOpener = _ => () => { },
+            PairWindowOpener = () => { },
             PairAsync = secret => Task.FromResult(
                 new PhonePairOutcome(false, "Pairing was refused: protocol failed: 4099")),
             QrRender = _ => null,
@@ -243,7 +263,7 @@ public sealed class SettingsViewModelTests
     {
         var vm = new SettingsViewModel(new AppSettings(), adbResolver: _ => "")
         {
-            PairWindowOpener = _ => () => { },
+            PairWindowOpener = () => { },
             PairAsync = secret => throw new InvalidOperationException("must not pair without adb"),
         };
 

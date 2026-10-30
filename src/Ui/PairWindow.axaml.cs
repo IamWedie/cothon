@@ -17,11 +17,12 @@ public partial class PairWindow : Window
         DataContext = viewModel;
     }
 
-    /// <summary>Production opener: the dialog lives until the user closes it.</summary>
+    /// <summary>Production opener: pops to the front, the dialog lives until the user closes it.</summary>
     public static Action Open(SettingsViewModel viewModel) => () =>
     {
         var window = new PairWindow(viewModel);
         window.Show();
+        window.Activate();
     };
 
     public void OnClose(object? sender, RoutedEventArgs args)

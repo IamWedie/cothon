@@ -71,6 +71,7 @@ public partial class SettingsViewModel : ObservableObject
         _stored = stored;
         _adbResolver = adbResolver ?? DefaultAdbResolver;
         _phoneFactory = phoneFactory ?? DefaultPhoneFactory;
+        PairWindowOpener = () => PairWindow.Open(this).Invoke();
 
         Provider = string.IsNullOrWhiteSpace(stored.ModelProvider) ? "echo" : stored.ModelProvider;
         ApiKey = KeyFor(stored, Provider);
@@ -122,9 +123,10 @@ public partial class SettingsViewModel : ObservableObject
     private static IDeviceConnector DefaultPhoneFactory(string adbPath, string host, int port)
         => new AdbClient(adbPath, host, port);
 
-    /// <summary>Opens the QR dialog; the window decides its owner. Tests keep this null.</summary>
-    internal Func<SettingsViewModel, Action>? PairWindowOpener { get; set; } = PairWindow.Open;
+    /// <summary>Opens the QR dialog. Tests keep this null. Dragged out of a Func trap: it must be a plain call.</summary>
+    internal Action? PairWindowOpener { get; set; }
 
+    /// <summary>Pairing seam: tests pin a canned outcome, production wires the real mDNS pairer once adb resolves.</summary>
     internal Func<PhonePairingSecret, Task<PhonePairOutcome>>? PairAsync { get; set; }
 
     /// <summary>QR renderer seam: production uses Avalonia bitmaps, tests use a stub.</summary>
@@ -220,11 +222,22 @@ public partial class SettingsViewModel : ObservableObject
             PairAsync = secret => PhoneQrPairer.Production(adb).PairByQrAsync(secret, CancellationToken.None);
         }
 
-        var generated = PhonePairingSecret.Generate();
-        PairQr = QrRender?.Invoke(generated.Payload);
         PairRunning = true;
         PairStatus = "Show this QR to your phone: Settings > Developer options > Wireless debugging > “Pair device with QR code”. Keep both on the same Wi-Fi.";
-        PairWindowOpener?.Invoke(this);
+        PairWindowOpener?.Invoke();
+
+        PhonePairingSecret generated;
+        try
+        {
+            generated = PhonePairingSecret.Generate();
+            PairQr = QrRender?.Invoke(generated.Payload);
+        }
+        catch (Exception ex)
+        {
+            PairStatus = $"Could not draw the QR code: {ex.Message} — the dialog is still open; tell me this line and I will fix it.";
+            PairRunning = false;
+            return;
+        }
 
         PhonePairOutcome outcome;
         try
